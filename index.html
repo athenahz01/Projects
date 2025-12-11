@@ -983,6 +983,9 @@
             pill.style.borderColor = border;
         }
 
+        // Track particle visibility for smooth transitions
+        let particleOpacity = 1.0;
+        
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
@@ -1002,6 +1005,24 @@
                 scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
                 scene.rotation.x *= 0.95;
             }
+
+            // Fade particles when viewing memory
+            const targetOpacity = (currentState === STATE.ZOOM) ? 0.0 : 1.0;
+            particleOpacity += (targetOpacity - particleOpacity) * 0.1;
+            
+            // Apply visibility to all particle meshes
+            for (let key in instancedMeshes) {
+                instancedMeshes[key].visible = particleOpacity > 0.05;
+                if (instancedMeshes[key].material) {
+                    instancedMeshes[key].material.opacity = particleOpacity;
+                    instancedMeshes[key].material.transparent = true;
+                }
+            }
+            
+            // Also fade snow and center glow
+            snowSystem.visible = particleOpacity > 0.05;
+            snowSystem.material.opacity = particleOpacity * 0.8;
+            centerGlow.visible = particleOpacity > 0.05;
 
             centerGlow.rotation.y = time * 0.5;
             centerGlow.scale.setScalar(1 + Math.sin(time*2) * 0.1);
@@ -1059,6 +1080,7 @@
                 
                 if (isFocused) {
                     // Focused photo: bring to front, center, and enlarge
+                    p.mesh.visible = true;
                     const tPos = new THREE.Vector3(0, 2, 45); // In front of camera
                     p.mesh.position.lerp(tPos, 0.1);
                     p.mesh.lookAt(camera.position);
@@ -1070,20 +1092,12 @@
                     p.mesh.material.depthTest = false;
                     
                 } else if (currentState === STATE.ZOOM) {
-                    // Other photos in zoom mode: fade back and shrink
-                    const tPos = p.scatterPos.clone();
-                    tPos.multiplyScalar(1.5); // Push further out
-                    p.mesh.position.lerp(tPos, 0.04);
-                    p.mesh.scale.lerp(new THREE.Vector3(0.3, 0.3, 0.3), 0.06);
-                    p.mesh.rotation.x += 0.002;
-                    p.mesh.rotation.y += 0.003;
-                    
-                    // Reset render order
-                    p.mesh.renderOrder = 0;
-                    p.mesh.material.depthTest = true;
+                    // Other photos in zoom mode: hide them completely
+                    p.mesh.visible = false;
                     
                 } else if (currentState === STATE.TREE) {
                     // Tree mode
+                    p.mesh.visible = true;
                     p.mesh.position.lerp(p.treePos, 0.06);
                     const targetScale = p.baseScale;
                     p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
@@ -1096,6 +1110,7 @@
                     
                 } else {
                     // Galaxy mode (scatter)
+                    p.mesh.visible = true;
                     const tPos = p.scatterPos.clone();
                     tPos.y += Math.sin(time * 0.3 + idx * 0.5) * 1.5;
                     p.mesh.position.lerp(tPos, 0.04);
