@@ -12,7 +12,6 @@
         
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;700&family=Great+Vibes&display=swap');
 
-        /* --- Intro Layer --- */
         #intro-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #020205; z-index: 999;
@@ -76,7 +75,6 @@
             transform: scale(1.05);
         }
 
-        /* --- Main UI Layer --- */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
@@ -93,7 +91,6 @@
             padding-bottom: 10px;
         }
         
-        /* Audio Controls */
         .audio-controls {
             position: absolute; top: 40px; right: 40px; pointer-events: auto;
             display: flex; gap: 10px;
@@ -107,7 +104,6 @@
         }
         .audio-btn:hover { background: rgba(147, 112, 219, 0.3); box-shadow: 0 0 15px #9370DB; }
 
-        /* Status Pill */
         .status-pill {
             position: absolute; 
             bottom: 160px; 
@@ -122,7 +118,6 @@
             pointer-events: auto;
         }
 
-        /* Controls */
         .controls-panel {
             position: absolute; bottom: 30px; left: 40px; width: 200px;
             background: transparent; pointer-events: auto; 
@@ -159,7 +154,6 @@
         
         #file-input { display: none; }
 
-        /* Config error message */
         #config-error {
             display: none;
             position: fixed;
@@ -183,7 +177,6 @@
         }
     </style>
 
-    <!-- Load Firebase config BEFORE the main script -->
     <script src="firebase-config.js"></script>
 
     <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
@@ -202,25 +195,21 @@
 </head>
 <body>
 
-    <!-- Config Error Message -->
     <div id="config-error">
         <h2>⚠️ Firebase Not Configured</h2>
         <p>Please copy <code>firebase-config.template.js</code> to <code>firebase-config.js</code><br>and add your Firebase credentials.</p>
     </div>
 
-    <!-- Intro Layer -->
     <div id="intro-layer">
         <div id="intro-text-container"></div>
         <button id="unwrap-btn">Unwrapping Your Christmas Gift KEKE</button>
     </div>
 
-    <!-- Main UI -->
     <div id="ui-layer">
         <div class="header">
             <h1>Le sapin de Noël d'Athena & Kehan</h1>
         </div>
         
-        <!-- Audio Controls -->
         <div class="audio-controls">
             <div id="prev-btn" class="audio-btn">⏮</div>
             <div id="sound-btn" class="audio-btn">🔇</div>
@@ -251,7 +240,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
         import { getFirestore, collection, addDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
 
-        // --- Check Firebase Config ---
         function checkFirebaseConfig() {
             if (typeof window.__firebase_config === 'undefined') {
                 document.getElementById('config-error').style.display = 'block';
@@ -277,7 +265,6 @@
             throw new Error("Firebase not configured");
         }
 
-        // --- Intro Logic ---
         const introLines = [
             "Hiii Kehan",
             "This is a gift made by Athena",
@@ -320,7 +307,6 @@
 
         playIntro();
 
-        // --- Firebase Init ---
         const firebaseConfig = JSON.parse(window.__firebase_config);
         const appId = window.__app_id || 'athena-kehan-tree';
         
@@ -328,21 +314,20 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- IMPROVED PHOTO LAYOUT CONFIGURATION ---
+        // --- IMPROVED PHOTO LAYOUT - Denser, more integrated ---
         const PHOTO_CONFIG = {
-            maxVisiblePhotos: 24,        // Max photos visible at once on tree
-            spiralTurns: 3,              // How many times the spiral wraps around
-            minScale: 0.5,               // Smallest photo scale (at top)
-            maxScale: 1.0,               // Largest photo scale (at bottom)
-            treeRadiusTop: 2,            // Radius at top of tree
-            treeRadiusBottom: 16,        // Radius at bottom of tree
-            treeHeightTop: 22,           // Y position of tree top
-            treeHeightBottom: -18,       // Y position of tree bottom
-            photoSize: 2.8,              // Base photo size (slightly smaller)
-            verticalSpacing: 3.5,        // Min vertical distance between photos
+            maxVisiblePhotos: 30,
+            spiralTurns: 4,              // More turns for denser spiral
+            minScale: 0.35,              // Smaller at top
+            maxScale: 0.75,              // Not too big at bottom
+            treeRadiusTop: 1.5,          // Tighter at top
+            treeRadiusBottom: 12,        // Tighter radius overall
+            treeHeightTop: 20,
+            treeHeightBottom: -16,
+            photoSize: 2.2,              // Smaller photos
+            embedDepth: 0.8,             // How much photos "sink into" tree
         };
 
-        // --- Royal Configuration ---
         const CONFIG = {
             colors: {
                 gold: new THREE.Color('#FFD700'),
@@ -380,13 +365,15 @@
         let instancedMeshes = {}; 
         let particlesData = [];   
         let photoParticles = [];  
-        let allPhotoData = [];    // Store all photo data from Firebase
+        let allPhotoData = [];
         const loadedPhotoIds = new Set();
         let dummy = new THREE.Object3D();
         let dummy2 = new THREE.Object3D(); 
         let centerGlow, snowSystem;
+        
+        // Separate group for photos to control render order
+        let photoGroup;
 
-        // --- Audio System ---
         const AudioSys = {
             ctx: null,
             masterGain: null,
@@ -585,62 +572,60 @@
             }
         };
 
-        // --- IMPROVED: Calculate spiral position on tree ---
+        // Calculate position on tree - denser spiral
         function calculateTreePosition(index, totalPhotos) {
             const cfg = PHOTO_CONFIG;
             const count = Math.min(totalPhotos, cfg.maxVisiblePhotos);
             
-            // Normalize index to 0-1 range (0 = top, 1 = bottom)
-            const t = index / Math.max(count - 1, 1);
+            // t goes from 0 (top) to 1 (bottom)
+            const t = count > 1 ? index / (count - 1) : 0.5;
             
-            // Height: top to bottom
+            // Height
             const y = cfg.treeHeightTop - t * (cfg.treeHeightTop - cfg.treeHeightBottom);
             
-            // Radius increases as we go down (cone shape)
-            const radius = cfg.treeRadiusTop + t * (cfg.treeRadiusBottom - cfg.treeRadiusTop);
+            // Radius - follows cone shape, slightly inset
+            const baseRadius = cfg.treeRadiusTop + t * (cfg.treeRadiusBottom - cfg.treeRadiusTop);
+            const radius = baseRadius * cfg.embedDepth; // Pull photos slightly into tree
             
-            // Spiral angle - multiple rotations around the tree
-            const angle = t * Math.PI * 2 * cfg.spiralTurns + (index * 0.5); // Add offset per photo
+            // Spiral angle with offset per photo for better distribution
+            const spiralAngle = t * Math.PI * 2 * cfg.spiralTurns;
+            const offsetAngle = (index % 3) * (Math.PI * 2 / 3); // Distribute in thirds
+            const angle = spiralAngle + offsetAngle;
             
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
             
-            // Scale: smaller at top, larger at bottom
+            // Scale based on height
             const scale = cfg.minScale + t * (cfg.maxScale - cfg.minScale);
             
             return { x, y, z, scale, angle };
         }
 
-        // --- IMPROVED: Calculate galaxy position ---
-        function calculateGalaxyPosition(index) {
-            const arms = 3;
-            const spinFactor = 4.0;
-            const galaxyRadius = 55;
+        // Galaxy position - spread out more to avoid overlap
+        function calculateGalaxyPosition(index, totalPhotos) {
+            const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5 degrees
+            const angle = index * goldenAngle;
             
-            const gR = Math.pow((index % 20) / 20, 0.6) * galaxyRadius + 5;
-            const armOffset = (index % arms) * (Math.PI * 2 / arms);
-            const gAngle = armOffset + (gR * 0.08 * spinFactor);
-            const spread = (Math.sin(index * 1.5) * 0.5) * 4.0;
+            // Spread radius based on index - ensures no overlap
+            const radiusBase = 8 + Math.sqrt(index) * 8;
+            const radius = radiusBase + (index % 3) * 3; // Add variation
             
-            const gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
-            const gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
-            const gy = (Math.sin(index * 0.7) * 0.5) * 8;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            const y = (Math.sin(index * 0.5) * 8) + ((index % 5) - 2) * 2;
             
-            return { x: gx, y: gy, z: gz };
+            return { x, y, z };
         }
 
-        // --- IMPROVED: Rebuild photo positions when photos change ---
         function rebuildPhotoPositions() {
             const totalPhotos = photoParticles.length;
             
             photoParticles.forEach((p, index) => {
-                // Recalculate tree position based on new index
                 const treePos = calculateTreePosition(index, totalPhotos);
                 p.treePos.set(treePos.x, treePos.y, treePos.z);
                 p.baseScale = treePos.scale;
                 
-                // Recalculate galaxy position
-                const galaxyPos = calculateGalaxyPosition(index);
+                const galaxyPos = calculateGalaxyPosition(index, totalPhotos);
                 p.scatterPos.set(galaxyPos.x, galaxyPos.y, galaxyPos.z);
             });
         }
@@ -695,6 +680,10 @@
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
+
+            // Create photo group for z-ordering
+            photoGroup = new THREE.Group();
+            scene.add(photoGroup);
 
             setupLights();
             createCenterPiece();
@@ -897,7 +886,6 @@
             });
         }
 
-        // --- IMPROVED: Create polaroid with calculated position ---
         function createPolaroid(url, index) {
             new THREE.TextureLoader().load(url, (tex) => {
                 tex.colorSpace = THREE.SRGBColorSpace; 
@@ -910,11 +898,12 @@
                 let worldH = cfg.photoSize / aspect;
                 
                 // Polaroid frame
-                const frameGeo = new THREE.PlaneGeometry(worldW + 0.4, worldH + 0.8);
+                const frameGeo = new THREE.PlaneGeometry(worldW + 0.3, worldH + 0.6);
                 const frameMat = new THREE.MeshStandardMaterial({ 
                     color: 0xFFF8DC, 
                     roughness: 0.5, 
-                    metalness: 0.2 
+                    metalness: 0.2,
+                    side: THREE.DoubleSide
                 });
                 const frame = new THREE.Mesh(frameGeo, frameMat);
                 
@@ -923,35 +912,37 @@
                 const imgMat = new THREE.MeshBasicMaterial({ map: tex });
                 const img = new THREE.Mesh(imgGeo, imgMat);
                 img.position.z = 0.02; 
-                img.position.y = 0.15; 
+                img.position.y = 0.12; 
                 frame.add(img);
 
-                // Small bow decoration
-                const bowGeo = new THREE.SphereGeometry(0.25); 
+                // Small bow
+                const bowGeo = new THREE.SphereGeometry(0.18); 
                 const bowMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.royalPurple });
                 const bow = new THREE.Mesh(bowGeo, bowMat);
-                bow.position.set(0, (worldH/2) + 0.45, 0.1);
+                bow.position.set(0, (worldH/2) + 0.35, 0.1);
                 frame.add(bow);
 
-                // Calculate positions using spiral layout
+                // Calculate positions
                 const treePos = calculateTreePosition(index, photoParticles.length + 1);
-                const galaxyPos = calculateGalaxyPosition(index);
+                const galaxyPos = calculateGalaxyPosition(index, photoParticles.length + 1);
 
                 frame.position.set(treePos.x, treePos.y, treePos.z);
                 frame.lookAt(0, treePos.y, 0); 
-                frame.rotation.y += Math.PI; 
-                scene.add(frame);
+                frame.rotation.y += Math.PI;
+                
+                // Add to photo group instead of scene directly
+                photoGroup.add(frame);
 
                 photoParticles.push({
                     mesh: frame, 
                     treePos: new THREE.Vector3(treePos.x, treePos.y, treePos.z),
                     treeRot: frame.rotation.clone(), 
                     scatterPos: new THREE.Vector3(galaxyPos.x, galaxyPos.y, galaxyPos.z),
-                    scatterRot: new THREE.Euler(Math.random(), Math.random(), Math.random()),
-                    baseScale: treePos.scale
+                    scatterRot: new THREE.Euler(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2),
+                    baseScale: treePos.scale,
+                    index: index
                 });
 
-                // Rebuild all positions when a new photo is added
                 rebuildPhotoPositions();
             });
         }
@@ -1005,10 +996,11 @@
                     scene.rotation.y += (handPosition.x * 0.5 - scene.rotation.y) * 0.05;
                     scene.rotation.x += (handPosition.y * 0.5 - scene.rotation.x) * 0.05;
                 } else {
-                    scene.rotation.y += 0.002;
+                    scene.rotation.y += 0.001;
                 }
             } else if (currentState === STATE.ZOOM) {
                 scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
+                scene.rotation.x *= 0.95;
             }
 
             centerGlow.rotation.y = time * 0.5;
@@ -1061,33 +1053,59 @@
             }
             snowSystem.geometry.attributes.position.needsUpdate = true;
 
-            // --- IMPROVED: Photo animation with proper scaling ---
+            // --- IMPROVED PHOTO ANIMATION WITH Z-ORDERING ---
             photoParticles.forEach((p, idx) => {
-                if (currentState === STATE.ZOOM && idx === focusedPhotoIndex) {
-                    const tPos = new THREE.Vector3(0, 0, 40); 
-                    p.mesh.position.lerp(tPos, 0.08);
-                    p.mesh.lookAt(camera.position); 
-                    p.mesh.scale.lerp(new THREE.Vector3(2.5, 2.5, 2.5), 0.08);
-                    p.mesh.rotation.z = 0;
-                    return;
-                } 
+                const isFocused = currentState === STATE.ZOOM && idx === focusedPhotoIndex;
                 
-                if (currentState === STATE.TREE) {
+                if (isFocused) {
+                    // Focused photo: bring to front, center, and enlarge
+                    const tPos = new THREE.Vector3(0, 2, 45); // In front of camera
+                    p.mesh.position.lerp(tPos, 0.1);
+                    p.mesh.lookAt(camera.position);
+                    p.mesh.scale.lerp(new THREE.Vector3(3, 3, 3), 0.1);
+                    p.mesh.rotation.z = 0;
+                    
+                    // Ensure focused photo renders on top
+                    p.mesh.renderOrder = 1000;
+                    p.mesh.material.depthTest = false;
+                    
+                } else if (currentState === STATE.ZOOM) {
+                    // Other photos in zoom mode: fade back and shrink
+                    const tPos = p.scatterPos.clone();
+                    tPos.multiplyScalar(1.5); // Push further out
+                    p.mesh.position.lerp(tPos, 0.04);
+                    p.mesh.scale.lerp(new THREE.Vector3(0.3, 0.3, 0.3), 0.06);
+                    p.mesh.rotation.x += 0.002;
+                    p.mesh.rotation.y += 0.003;
+                    
+                    // Reset render order
+                    p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
+                    
+                } else if (currentState === STATE.TREE) {
+                    // Tree mode
                     p.mesh.position.lerp(p.treePos, 0.06);
                     const targetScale = p.baseScale;
                     p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
                     p.mesh.lookAt(0, p.mesh.position.y, 0);
-                    p.mesh.rotation.y += Math.PI; 
-                    // Gentle sway
-                    p.mesh.rotation.z = Math.sin(time * 0.5 + idx * 0.3) * 0.03;
-                } else { 
-                    // Galaxy mode
+                    p.mesh.rotation.y += Math.PI;
+                    p.mesh.rotation.z = Math.sin(time * 0.5 + idx * 0.3) * 0.02;
+                    
+                    p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
+                    
+                } else {
+                    // Galaxy mode (scatter)
                     const tPos = p.scatterPos.clone();
-                    tPos.y += Math.sin(time * 0.3 + idx) * 2;
+                    tPos.y += Math.sin(time * 0.3 + idx * 0.5) * 1.5;
                     p.mesh.position.lerp(tPos, 0.04);
-                    p.mesh.scale.lerp(new THREE.Vector3(0.7, 0.7, 0.7), 0.06);
-                    p.mesh.rotation.x += 0.003;
-                    p.mesh.rotation.y += 0.005;
+                    p.mesh.scale.lerp(new THREE.Vector3(0.6, 0.6, 0.6), 0.06);
+                    
+                    // Face camera in galaxy mode for better visibility
+                    p.mesh.lookAt(camera.position);
+                    
+                    p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
                 }
             });
             
