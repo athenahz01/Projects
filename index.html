@@ -6,7 +6,7 @@
     <title>Le sapin de Noël d'Athena & Kehan</title>
     <style>
         body { 
-            margin: 0; overflow: hidden; background-color: #030205; /* Deep Violet Black */
+            margin: 0; overflow: hidden; background-color: #030205;
             font-family: 'Cinzel', serif; user-select: none;
         }
         
@@ -28,7 +28,7 @@
         .intro-line {
             font-family: 'Georgia', serif;
             font-size: 38px; 
-            color: #F3E5AB; /* Vanilla */
+            color: #F3E5AB;
             text-shadow: 0 0 10px rgba(224, 192, 151, 0.3);
             margin: 8px 0;
             opacity: 0;
@@ -81,7 +81,7 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
             display: flex; flex-direction: column; align-items: center;
-            opacity: 0; /* Hidden initially */
+            opacity: 0;
             transition: opacity 2s ease-in;
         }
         #ui-layer.visible { opacity: 1; }
@@ -300,7 +300,7 @@
                 }
                 div.innerText = introLines[i];
                 container.appendChild(div);
-                void div.offsetWidth; // Force reflow
+                void div.offsetWidth;
                 div.classList.add('visible');
                 await new Promise(r => setTimeout(r, 1200));
             }
@@ -327,6 +327,20 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // --- IMPROVED PHOTO LAYOUT CONFIGURATION ---
+        const PHOTO_CONFIG = {
+            maxVisiblePhotos: 24,        // Max photos visible at once on tree
+            spiralTurns: 3,              // How many times the spiral wraps around
+            minScale: 0.5,               // Smallest photo scale (at top)
+            maxScale: 1.0,               // Largest photo scale (at bottom)
+            treeRadiusTop: 2,            // Radius at top of tree
+            treeRadiusBottom: 16,        // Radius at bottom of tree
+            treeHeightTop: 22,           // Y position of tree top
+            treeHeightBottom: -18,       // Y position of tree bottom
+            photoSize: 2.8,              // Base photo size (slightly smaller)
+            verticalSpacing: 3.5,        // Min vertical distance between photos
+        };
 
         // --- Royal Configuration ---
         const CONFIG = {
@@ -366,6 +380,7 @@
         let instancedMeshes = {}; 
         let particlesData = [];   
         let photoParticles = [];  
+        let allPhotoData = [];    // Store all photo data from Firebase
         const loadedPhotoIds = new Set();
         let dummy = new THREE.Object3D();
         let dummy2 = new THREE.Object3D(); 
@@ -570,6 +585,66 @@
             }
         };
 
+        // --- IMPROVED: Calculate spiral position on tree ---
+        function calculateTreePosition(index, totalPhotos) {
+            const cfg = PHOTO_CONFIG;
+            const count = Math.min(totalPhotos, cfg.maxVisiblePhotos);
+            
+            // Normalize index to 0-1 range (0 = top, 1 = bottom)
+            const t = index / Math.max(count - 1, 1);
+            
+            // Height: top to bottom
+            const y = cfg.treeHeightTop - t * (cfg.treeHeightTop - cfg.treeHeightBottom);
+            
+            // Radius increases as we go down (cone shape)
+            const radius = cfg.treeRadiusTop + t * (cfg.treeRadiusBottom - cfg.treeRadiusTop);
+            
+            // Spiral angle - multiple rotations around the tree
+            const angle = t * Math.PI * 2 * cfg.spiralTurns + (index * 0.5); // Add offset per photo
+            
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            
+            // Scale: smaller at top, larger at bottom
+            const scale = cfg.minScale + t * (cfg.maxScale - cfg.minScale);
+            
+            return { x, y, z, scale, angle };
+        }
+
+        // --- IMPROVED: Calculate galaxy position ---
+        function calculateGalaxyPosition(index) {
+            const arms = 3;
+            const spinFactor = 4.0;
+            const galaxyRadius = 55;
+            
+            const gR = Math.pow((index % 20) / 20, 0.6) * galaxyRadius + 5;
+            const armOffset = (index % arms) * (Math.PI * 2 / arms);
+            const gAngle = armOffset + (gR * 0.08 * spinFactor);
+            const spread = (Math.sin(index * 1.5) * 0.5) * 4.0;
+            
+            const gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
+            const gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
+            const gy = (Math.sin(index * 0.7) * 0.5) * 8;
+            
+            return { x: gx, y: gy, z: gz };
+        }
+
+        // --- IMPROVED: Rebuild photo positions when photos change ---
+        function rebuildPhotoPositions() {
+            const totalPhotos = photoParticles.length;
+            
+            photoParticles.forEach((p, index) => {
+                // Recalculate tree position based on new index
+                const treePos = calculateTreePosition(index, totalPhotos);
+                p.treePos.set(treePos.x, treePos.y, treePos.z);
+                p.baseScale = treePos.scale;
+                
+                // Recalculate galaxy position
+                const galaxyPos = calculateGalaxyPosition(index);
+                p.scatterPos.set(galaxyPos.x, galaxyPos.y, galaxyPos.z);
+            });
+        }
+
         async function init() {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -590,7 +665,8 @@
                             const data = change.doc.data();
                             if (!loadedPhotoIds.has(change.doc.id)) {
                                 loadedPhotoIds.add(change.doc.id);
-                                createPolaroid(data.url, data.position, data.rotation, data.galaxyPosition);
+                                allPhotoData.push(data);
+                                createPolaroid(data.url, photoParticles.length);
                             }
                         }
                     });
@@ -598,7 +674,7 @@
             }
 
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x040206, 0.015);
+            scene.fog = new THREE.FogExp2(0x040206, 0.012);
 
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
             camera.position.set(0, 4, 60); 
@@ -792,99 +868,91 @@
             mesh.instanceMatrix.needsUpdate = true;
         }
 
-        // Helper to resize images for efficiency
         function resizeImage(base64Str, maxWidth = 512, maxHeight = 512) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.src = base64Str;
                 img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
 
-                if (width > height) {
-                    if (width > maxWidth) {
-                    height *= maxWidth / width;
-                    width = maxWidth;
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
                     }
-                } else {
-                    if (height > maxHeight) {
-                    width *= maxHeight / height;
-                    height = maxHeight;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
                 };
             });
         }
 
-        function createPolaroid(url, pos, rot, galaxyPos) {
+        // --- IMPROVED: Create polaroid with calculated position ---
+        function createPolaroid(url, index) {
             new THREE.TextureLoader().load(url, (tex) => {
                 tex.colorSpace = THREE.SRGBColorSpace; 
                 const imgWidth = tex.image.width;
                 const imgHeight = tex.image.height;
                 const aspect = imgWidth / imgHeight;
-                let worldW = 3.5; let worldH = 3.5 / aspect;
                 
-                const frameGeo = new THREE.PlaneGeometry(worldW + 0.6, worldH + 1.2);
-                const frameMat = new THREE.MeshStandardMaterial({ color: 0xFFF8DC, roughness: 0.5, metalness: 0.2 });
+                const cfg = PHOTO_CONFIG;
+                let worldW = cfg.photoSize; 
+                let worldH = cfg.photoSize / aspect;
+                
+                // Polaroid frame
+                const frameGeo = new THREE.PlaneGeometry(worldW + 0.4, worldH + 0.8);
+                const frameMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xFFF8DC, 
+                    roughness: 0.5, 
+                    metalness: 0.2 
+                });
                 const frame = new THREE.Mesh(frameGeo, frameMat);
                 
+                // Photo
                 const imgGeo = new THREE.PlaneGeometry(worldW, worldH);
                 const imgMat = new THREE.MeshBasicMaterial({ map: tex });
                 const img = new THREE.Mesh(imgGeo, imgMat);
-                img.position.z = 0.02; img.position.y = 0.2; 
+                img.position.z = 0.02; 
+                img.position.y = 0.15; 
                 frame.add(img);
 
-                const bowGeo = new THREE.SphereGeometry(0.35); 
+                // Small bow decoration
+                const bowGeo = new THREE.SphereGeometry(0.25); 
                 const bowMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.royalPurple });
                 const bow = new THREE.Mesh(bowGeo, bowMat);
-                bow.position.set(0, (worldH/2) + 0.6, 0.1);
+                bow.position.set(0, (worldH/2) + 0.45, 0.1);
                 frame.add(bow);
 
-                // Use saved position or generate new one
-                let tx, ty, tz, gx, gy, gz;
-                
-                if (pos) {
-                    tx = pos.x; ty = pos.y; tz = pos.z;
-                } else {
-                    const t = Math.random();
-                    const h = (t * 30) - 10;
-                    const r = 18 * (1 - t) + 3.0; 
-                    const angle = Math.random() * Math.PI * 2;
-                    tx = Math.cos(angle) * r;
-                    ty = h;
-                    tz = Math.sin(angle) * r;
-                }
+                // Calculate positions using spiral layout
+                const treePos = calculateTreePosition(index, photoParticles.length + 1);
+                const galaxyPos = calculateGalaxyPosition(index);
 
-                if (galaxyPos) {
-                    gx = galaxyPos.x; gy = galaxyPos.y; gz = galaxyPos.z;
-                } else {
-                    const arms = 3; const spinFactor = 4.0; const galaxyRadius = 50;
-                    const gR = Math.pow(Math.random(), 0.5) * galaxyRadius; 
-                    const armOffset = Math.floor(Math.random() * arms) * (Math.PI * 2 / arms);
-                    const gAngle = armOffset + (gR * 0.1 * spinFactor);
-                    const spread = (Math.random() - 0.5) * 5.0;
-                    gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
-                    gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
-                    gy = (Math.random() - 0.5) * 10;
-                }
-
-                frame.position.set(tx, ty, tz);
-                frame.lookAt(0, ty, 0); frame.rotation.y += Math.PI; 
+                frame.position.set(treePos.x, treePos.y, treePos.z);
+                frame.lookAt(0, treePos.y, 0); 
+                frame.rotation.y += Math.PI; 
                 scene.add(frame);
 
                 photoParticles.push({
-                    mesh: frame, treePos: new THREE.Vector3(tx, ty, tz),
+                    mesh: frame, 
+                    treePos: new THREE.Vector3(treePos.x, treePos.y, treePos.z),
                     treeRot: frame.rotation.clone(), 
-                    scatterPos: new THREE.Vector3(gx, gy, gz),
+                    scatterPos: new THREE.Vector3(galaxyPos.x, galaxyPos.y, galaxyPos.z),
                     scatterRot: new THREE.Euler(Math.random(), Math.random(), Math.random()),
-                    baseScale: 1.0 
+                    baseScale: treePos.scale
                 });
+
+                // Rebuild all positions when a new photo is added
+                rebuildPhotoPositions();
             });
         }
 
@@ -896,30 +964,9 @@
                         const rawBase64 = evt.target.result;
                         const resizedBase64 = await resizeImage(rawBase64);
                         
-                        // Calculate position once here for persistence
-                        const t = Math.random();
-                        const h = (t * 30) - 10;
-                        const rRadius = 18 * (1 - t) + 3.0; 
-                        const angle = Math.random() * Math.PI * 2;
-                        const tx = Math.cos(angle) * rRadius;
-                        const tz = Math.sin(angle) * rRadius;
-
-                        // Galaxy calc
-                        const arms = 3; const spinFactor = 4.0; const galaxyRadius = 50;
-                        const gR = Math.pow(Math.random(), 0.5) * galaxyRadius; 
-                        const armOffset = Math.floor(Math.random() * arms) * (Math.PI * 2 / arms);
-                        const gAngle = armOffset + (gR * 0.1 * spinFactor);
-                        const spread = (Math.random() - 0.5) * 5.0;
-                        const gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
-                        const gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
-                        const gy = (Math.random() - 0.5) * 10;
-                        
                         try {
                             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tree_photos'), {
                                 url: resizedBase64,
-                                position: { x: tx, y: h, z: tz },
-                                rotation: { x: 0, y: 0, z: 0 }, // Simplified rot storage
-                                galaxyPosition: { x: gx, y: gy, z: gz },
                                 timestamp: Date.now()
                             });
                             AudioSys.playChime();
@@ -950,7 +997,9 @@
             const time = clock.getElapsedTime();
 
             if (currentState === STATE.TREE) {
-                scene.rotation.y += 0.002; scene.rotation.x *= 0.95; scene.rotation.z *= 0.95;
+                scene.rotation.y += 0.002; 
+                scene.rotation.x *= 0.95; 
+                scene.rotation.z *= 0.95;
             } else if (currentState === STATE.SCATTER) {
                 if (isHandDetected) {
                     scene.rotation.y += (handPosition.x * 0.5 - scene.rotation.y) * 0.05;
@@ -1012,29 +1061,36 @@
             }
             snowSystem.geometry.attributes.position.needsUpdate = true;
 
+            // --- IMPROVED: Photo animation with proper scaling ---
             photoParticles.forEach((p, idx) => {
                 if (currentState === STATE.ZOOM && idx === focusedPhotoIndex) {
                     const tPos = new THREE.Vector3(0, 0, 40); 
                     p.mesh.position.lerp(tPos, 0.08);
                     p.mesh.lookAt(camera.position); 
-                    p.mesh.scale.lerp(new THREE.Vector3(2.0, 2.0, 2.0), 0.08);
+                    p.mesh.scale.lerp(new THREE.Vector3(2.5, 2.5, 2.5), 0.08);
                     p.mesh.rotation.z = 0;
                     return;
                 } 
+                
                 if (currentState === STATE.TREE) {
-                    p.mesh.position.lerp(p.treePos, 0.08);
-                    p.mesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.08);
+                    p.mesh.position.lerp(p.treePos, 0.06);
+                    const targetScale = p.baseScale;
+                    p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
                     p.mesh.lookAt(0, p.mesh.position.y, 0);
                     p.mesh.rotation.y += Math.PI; 
-                    p.mesh.rotation.z = Math.sin(time + idx) * 0.05;
+                    // Gentle sway
+                    p.mesh.rotation.z = Math.sin(time * 0.5 + idx * 0.3) * 0.03;
                 } else { 
+                    // Galaxy mode
                     const tPos = p.scatterPos.clone();
+                    tPos.y += Math.sin(time * 0.3 + idx) * 2;
                     p.mesh.position.lerp(tPos, 0.04);
-                    p.mesh.scale.lerp(new THREE.Vector3(0.6, 0.6, 0.6), 0.08);
-                    p.mesh.rotation.x += 0.005;
+                    p.mesh.scale.lerp(new THREE.Vector3(0.7, 0.7, 0.7), 0.06);
+                    p.mesh.rotation.x += 0.003;
                     p.mesh.rotation.y += 0.005;
                 }
             });
+            
             composer.render();
         }
 
