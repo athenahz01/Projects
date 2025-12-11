@@ -26,15 +26,15 @@
         }
 
         .intro-line {
-            font-family: 'Cinzel', serif;
-            color: #E6E6FA;
-            font-size: 20px;
-            letter-spacing: 2px;
-            margin: 12px 0;
+            font-family: 'Georgia', serif; 
+            font-size: 38px; 
+            color: #F3E5AB; 
+            text-shadow: 0 0 10px rgba(224, 192, 151, 0.3);
+            margin: 8px 0;
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 1s ease-out, transform 1s ease-out;
-            text-shadow: 0 0 15px rgba(147, 112, 219, 0.8);
+            transform: translateY(15px);
+            transition: opacity 1.5s ease, transform 1.5s ease;
+            white-space: nowrap;
         }
         
         .intro-line.special {
@@ -87,12 +87,10 @@
         #ui-layer.visible { opacity: 1; }
 
         .header h1 {
-            margin-top: 5vh; font-weight: 700; letter-spacing: 4px; 
-            color: #E6E6FA; 
-            font-size: 20px; text-transform: uppercase;
-            text-shadow: 0 0 30px rgba(147, 112, 219, 0.6);
-            border-bottom: 2px solid rgba(148, 0, 211, 0.5); 
-            padding-bottom: 15px;
+            margin-top: 5vh; font-family: 'Pinyon Script', cursive; font-weight: 400; 
+            letter-spacing: 1px; color: #E0C097; 
+            font-size: 36px; text-shadow: 0 0 20px rgba(224, 192, 151, 0.4);
+            padding-bottom: 10px;
         }
         
         /* Audio Controls */
@@ -265,11 +263,25 @@
         playIntro();
 
         // --- Firebase Init ---
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        // INSTRUCTIONS FOR DEPLOYMENT:
+        // 1. Create a Firebase Project at console.firebase.google.com
+        // 2. Enable Firestore Database and Anonymous Authentication
+        // 3. Replace the 'firebaseConfig' object below with your own keys
+        const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : {
+            // PASTE YOUR FIREBASE CONFIG HERE
+            apiKey: "AIzaSyAwzuQt3fpyD-_N6O9sylNOP9MtsMgbnEk",
+            authDomain: "christmas-memory-tree.firebaseapp.com",
+            projectId: "christmas-memory-tree",
+            storageBucket: "christmas-memory-tree.firebasestorage.app",
+            messagingSenderId: "445103150850",
+            appId: "1:445103150850:web:0a22b7da9c6330ae2d141b",
+            measurementId: "G-NZZ9K3W7NK"
+        };
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-tree';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'athena-kehan-tree';
 
         // --- Royal Configuration ---
         const CONFIG = {
