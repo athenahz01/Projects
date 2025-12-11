@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Le sapin de Noël d’Athena & Kehan</title>
+    <title>Le sapin de Noël d'Athena & Kehan</title>
     <style>
         body { 
             margin: 0; overflow: hidden; background-color: #030205; /* Deep Violet Black */
@@ -26,9 +26,9 @@
         }
 
         .intro-line {
-            font-family: 'Georgia', serif; 
+            font-family: 'Georgia', serif;
             font-size: 38px; 
-            color: #F3E5AB; 
+            color: #F3E5AB; /* Vanilla */
             text-shadow: 0 0 10px rgba(224, 192, 151, 0.3);
             margin: 8px 0;
             opacity: 0;
@@ -39,7 +39,7 @@
         
         .intro-line.special {
             font-family: 'Great Vibes', cursive;
-            font-size: 32px;
+            font-size: 42px;
             color: #FFD700;
             text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
         }
@@ -158,7 +158,33 @@
         #cam-preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.8; }
         
         #file-input { display: none; }
+
+        /* Config error message */
+        #config-error {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(139, 0, 0, 0.9);
+            color: #fff;
+            padding: 30px 50px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 10000;
+            font-family: 'Lato', sans-serif;
+        }
+        #config-error h2 { margin: 0 0 15px 0; color: #FFD700; }
+        #config-error code { 
+            background: rgba(0,0,0,0.3); 
+            padding: 2px 8px; 
+            border-radius: 4px;
+            font-size: 14px;
+        }
     </style>
+
+    <!-- Load Firebase config BEFORE the main script -->
+    <script src="firebase-config.js"></script>
 
     <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -176,6 +202,12 @@
 </head>
 <body>
 
+    <!-- Config Error Message -->
+    <div id="config-error">
+        <h2>⚠️ Firebase Not Configured</h2>
+        <p>Please copy <code>firebase-config.template.js</code> to <code>firebase-config.js</code><br>and add your Firebase credentials.</p>
+    </div>
+
     <!-- Intro Layer -->
     <div id="intro-layer">
         <div id="intro-text-container"></div>
@@ -185,7 +217,7 @@
     <!-- Main UI -->
     <div id="ui-layer">
         <div class="header">
-            <h1>Le sapin de Noël d’Athena & Kehan</h1>
+            <h1>Le sapin de Noël d'Athena & Kehan</h1>
         </div>
         
         <!-- Audio Controls -->
@@ -218,6 +250,32 @@
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
         import { getFirestore, collection, addDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
+
+        // --- Check Firebase Config ---
+        function checkFirebaseConfig() {
+            if (typeof window.__firebase_config === 'undefined') {
+                document.getElementById('config-error').style.display = 'block';
+                document.getElementById('intro-layer').style.display = 'none';
+                return false;
+            }
+            try {
+                const config = JSON.parse(window.__firebase_config);
+                if (config.apiKey === "YOUR_API_KEY_HERE" || config.apiKey.includes("PASTE_YOUR")) {
+                    document.getElementById('config-error').style.display = 'block';
+                    document.getElementById('intro-layer').style.display = 'none';
+                    return false;
+                }
+            } catch (e) {
+                document.getElementById('config-error').style.display = 'block';
+                document.getElementById('intro-layer').style.display = 'none';
+                return false;
+            }
+            return true;
+        }
+
+        if (!checkFirebaseConfig()) {
+            throw new Error("Firebase not configured");
+        }
 
         // --- Intro Logic ---
         const introLines = [
@@ -263,25 +321,12 @@
         playIntro();
 
         // --- Firebase Init ---
-        // INSTRUCTIONS FOR DEPLOYMENT:
-        // 1. Create a Firebase Project at console.firebase.google.com
-        // 2. Enable Firestore Database and Anonymous Authentication
-        // 3. Replace the 'firebaseConfig' object below with your own keys
-        const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : {
-            // PASTE YOUR FIREBASE CONFIG HERE
-            apiKey: "AIzaSyAwzuQt3fpyD-_N6O9sylNOP9MtsMgbnEk",
-            authDomain: "christmas-memory-tree.firebaseapp.com",
-            projectId: "christmas-memory-tree",
-            storageBucket: "christmas-memory-tree.firebasestorage.app",
-            messagingSenderId: "445103150850",
-            appId: "1:445103150850:web:0a22b7da9c6330ae2d141b",
-            measurementId: "G-NZZ9K3W7NK"
-        };
+        const firebaseConfig = JSON.parse(window.__firebase_config);
+        const appId = window.__app_id || 'athena-kehan-tree';
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'athena-kehan-tree';
 
         // --- Royal Configuration ---
         const CONFIG = {
@@ -562,7 +607,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.1;
+            renderer.toneMappingExposure = 1.0;
             document.body.appendChild(renderer.domElement);
 
             const renderScene = new RenderPass(scene, camera);
@@ -667,7 +712,7 @@
         function createSnow() {
             const geo = new THREE.BufferGeometry();
             const pos = [];
-            for(let i=0; i<2000; i++) {
+            for(let i=0; i<2500; i++) {
                 pos.push((Math.random()-0.5)*100, (Math.random()-0.5)*80, (Math.random()-0.5)*100);
             }
             geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
