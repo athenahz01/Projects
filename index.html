@@ -746,7 +746,7 @@
             });
             instancedMeshes.shards = new THREE.InstancedMesh(shardGeo, shardMat, CONFIG.particleCount.shards);
 
-            const baubleGeo = new THREE.SphereGeometry(0.75, 32, 16); 
+            const baubleGeo = new THREE.SphereGeometry(0.5, 32, 16); 
             const baubleMat = new THREE.MeshPhysicalMaterial({
                 color: 0xffffff, 
                 roughness: 0.05, 
@@ -816,13 +816,12 @@
 
                 if (type === 'baubles') {
                     const rand = Math.random();
-                    if (rand > 0.85) tempColor.set(CONFIG.colors.royalPurple);
-                    else if (rand > 0.70) tempColor.set(CONFIG.colors.deepIndigo);
-                    else if (rand > 0.55) tempColor.set(CONFIG.colors.gold);
-                    else if (rand > 0.40) tempColor.set(CONFIG.colors.babyBlue); 
+                    if (rand > 0.80) tempColor.set(CONFIG.colors.gold);
+                    else if (rand > 0.60) tempColor.set(CONFIG.colors.babyBlue);
+                    else if (rand > 0.45) tempColor.set(CONFIG.colors.red);
                     else if (rand > 0.30) tempColor.set(CONFIG.colors.lavender); 
                     else if (rand > 0.15) tempColor.set(CONFIG.colors.silver);
-                    else tempColor.set(CONFIG.colors.red); 
+                    else tempColor.set(CONFIG.colors.warmWhite); 
                     mesh.setColorAt(i, tempColor);
                 }
                 if (type === 'shards') {
