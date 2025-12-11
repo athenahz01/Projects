@@ -1081,19 +1081,15 @@
                 if (isFocused) {
                     // Focused photo: bring to front, center, and enlarge
                     p.mesh.visible = true;
-                    const tPos = new THREE.Vector3(0, 2, 50); // In front of camera
+                    const tPos = new THREE.Vector3(0, 2, 45); // In front of camera
                     p.mesh.position.lerp(tPos, 0.1);
                     p.mesh.lookAt(camera.position);
                     p.mesh.scale.lerp(new THREE.Vector3(3, 3, 3), 0.1);
                     p.mesh.rotation.z = 0;
                     
-                    // Ensure focused photo renders on top - apply to all children too
+                    // Ensure focused photo renders on top
                     p.mesh.renderOrder = 1000;
-                    p.mesh.traverse((child) => {
-                        if (child.material) {
-                            child.renderOrder = 1000;
-                        }
-                    });
+                    p.mesh.material.depthTest = false;
                     
                 } else if (currentState === STATE.ZOOM) {
                     // Other photos in zoom mode: hide them completely
@@ -1109,8 +1105,8 @@
                     p.mesh.rotation.y += Math.PI;
                     p.mesh.rotation.z = Math.sin(time * 0.5 + idx * 0.3) * 0.02;
                     
-                    // Reset render order
                     p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
                     
                 } else {
                     // Galaxy mode (scatter)
@@ -1123,8 +1119,8 @@
                     // Face camera in galaxy mode for better visibility
                     p.mesh.lookAt(camera.position);
                     
-                    // Reset render order
                     p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
                 }
             });
             
