@@ -983,6 +983,10 @@
             pill.style.borderColor = border;
         }
 
+        // Track particle visibility for zoom mode
+        let particleTargetOpacity = 1.0;
+        let particleCurrentOpacity = 1.0;
+
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
@@ -991,6 +995,7 @@
                 scene.rotation.y += 0.002; 
                 scene.rotation.x *= 0.95; 
                 scene.rotation.z *= 0.95;
+                particleTargetOpacity = 1.0;
             } else if (currentState === STATE.SCATTER) {
                 if (isHandDetected) {
                     scene.rotation.y += (handPosition.x * 0.5 - scene.rotation.y) * 0.05;
@@ -998,10 +1003,24 @@
                 } else {
                     scene.rotation.y += 0.001;
                 }
+                particleTargetOpacity = 1.0;
             } else if (currentState === STATE.ZOOM) {
                 scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
                 scene.rotation.x *= 0.95;
+                particleTargetOpacity = 0.15; // Fade particles when viewing photo
             }
+
+            // Smoothly fade particles
+            particleCurrentOpacity += (particleTargetOpacity - particleCurrentOpacity) * 0.08;
+            
+            // Apply opacity to particle meshes
+            for (let key in instancedMeshes) {
+                if (instancedMeshes[key].material) {
+                    instancedMeshes[key].material.opacity = particleCurrentOpacity;
+                    instancedMeshes[key].material.transparent = true;
+                }
+            }
+            snowSystem.material.opacity = particleCurrentOpacity * 0.8;
 
             centerGlow.rotation.y = time * 0.5;
             centerGlow.scale.setScalar(1 + Math.sin(time*2) * 0.1);
@@ -1058,16 +1077,16 @@
                 const isFocused = currentState === STATE.ZOOM && idx === focusedPhotoIndex;
                 
                 if (isFocused) {
-                    // Focused photo: center and enlarge, but not too close
+                    // Focused photo: center and enlarge
                     p.mesh.visible = true;
-                    const tPos = new THREE.Vector3(0, 0, 35); // Moderate distance
+                    const tPos = new THREE.Vector3(0, 0, 40); // Closer to camera
                     p.mesh.position.lerp(tPos, 0.08);
                     
                     // Face camera
                     const lookTarget = camera.position.clone();
                     p.mesh.lookAt(lookTarget);
                     
-                    p.mesh.scale.lerp(new THREE.Vector3(2.5, 2.5, 2.5), 0.08);
+                    p.mesh.scale.lerp(new THREE.Vector3(3.5, 3.5, 3.5), 0.08); // Bigger!
                     
                     // Keep photo upright
                     p.mesh.rotation.z = 0;
