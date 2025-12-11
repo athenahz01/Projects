@@ -673,9 +673,9 @@
 
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.strength = 0.8;    // Reduced from 1.2 - less overexposure
-            bloomPass.radius = 0.4;      // Reduced from 0.55 - tighter glow
-            bloomPass.threshold = 0.5;   // Increased from 0.4 - only brightest things glow 
+            bloomPass.strength = 1.2; 
+            bloomPass.radius = 0.55;
+            bloomPass.threshold = 0.4; 
             
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
@@ -983,6 +983,9 @@
             pill.style.borderColor = border;
         }
 
+        // Track particle visibility for smooth transitions
+        let particleOpacity = 1.0;
+        
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
@@ -1002,6 +1005,24 @@
                 scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
                 scene.rotation.x *= 0.95;
             }
+
+            // Fade particles when viewing memory
+            const targetOpacity = (currentState === STATE.ZOOM) ? 0.0 : 1.0;
+            particleOpacity += (targetOpacity - particleOpacity) * 0.1;
+            
+            // Apply visibility to all particle meshes
+            for (let key in instancedMeshes) {
+                instancedMeshes[key].visible = particleOpacity > 0.05;
+                if (instancedMeshes[key].material) {
+                    instancedMeshes[key].material.opacity = particleOpacity;
+                    instancedMeshes[key].material.transparent = true;
+                }
+            }
+            
+            // Also fade snow and center glow
+            snowSystem.visible = particleOpacity > 0.05;
+            snowSystem.material.opacity = particleOpacity * 0.8;
+            centerGlow.visible = particleOpacity > 0.05;
 
             centerGlow.rotation.y = time * 0.5;
             centerGlow.scale.setScalar(1 + Math.sin(time*2) * 0.1);
@@ -1060,23 +1081,19 @@
                 if (isFocused) {
                     // Focused photo: bring to front, center, and enlarge
                     p.mesh.visible = true;
-                    const tPos = new THREE.Vector3(0, 2, 55); // Very close to camera
+                    const tPos = new THREE.Vector3(0, 2, 45); // In front of camera
                     p.mesh.position.lerp(tPos, 0.1);
                     p.mesh.lookAt(camera.position);
-                    p.mesh.scale.lerp(new THREE.Vector3(2.8, 2.8, 2.8), 0.1);
+                    p.mesh.scale.lerp(new THREE.Vector3(3, 3, 3), 0.1);
                     p.mesh.rotation.z = 0;
                     
-                    // High render order ensures it draws on top
-                    p.mesh.renderOrder = 999;
+                    // Ensure focused photo renders on top
+                    p.mesh.renderOrder = 1000;
+                    p.mesh.material.depthTest = false;
                     
                 } else if (currentState === STATE.ZOOM) {
-                    // Other photos in zoom mode: push to background, make smaller
-                    p.mesh.visible = true;
-                    const tPos = p.scatterPos.clone();
-                    tPos.z -= 30; // Push further back
-                    p.mesh.position.lerp(tPos, 0.04);
-                    p.mesh.scale.lerp(new THREE.Vector3(0.25, 0.25, 0.25), 0.06);
-                    p.mesh.renderOrder = 0;
+                    // Other photos in zoom mode: hide them completely
+                    p.mesh.visible = false;
                     
                 } else if (currentState === STATE.TREE) {
                     // Tree mode
@@ -1088,8 +1105,8 @@
                     p.mesh.rotation.y += Math.PI;
                     p.mesh.rotation.z = Math.sin(time * 0.5 + idx * 0.3) * 0.02;
                     
-                    // Reset render order
                     p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
                     
                 } else {
                     // Galaxy mode (scatter)
@@ -1102,8 +1119,8 @@
                     // Face camera in galaxy mode for better visibility
                     p.mesh.lookAt(camera.position);
                     
-                    // Reset render order
                     p.mesh.renderOrder = 0;
+                    p.mesh.material.depthTest = true;
                 }
             });
             
