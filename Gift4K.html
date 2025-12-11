@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le sapin de Noël d’Athena & Kehan</title>
+    <style>
+        body { 
+            margin: 0; overflow: hidden; background-color: #030205; /* Deep Violet Black */
+            font-family: 'Cinzel', serif; user-select: none;
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;700&family=Great+Vibes&display=swap');
+
+        /* --- Intro Layer --- */
+        #intro-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #020205; z-index: 999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1.5s ease-in-out;
+        }
+        
+        #intro-text-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .intro-line {
+            font-family: 'Cinzel', serif;
+            color: #E6E6FA;
+            font-size: 20px;
+            letter-spacing: 2px;
+            margin: 12px 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease-out, transform 1s ease-out;
+            text-shadow: 0 0 15px rgba(147, 112, 219, 0.8);
+        }
+        
+        .intro-line.special {
+            font-family: 'Great Vibes', cursive;
+            font-size: 32px;
+            color: #FFD700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .intro-line.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #unwrap-btn {
+            opacity: 0;
+            padding: 15px 40px;
+            background: transparent;
+            border: 1px solid #FFD700;
+            color: #FFD700;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.8s;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+            pointer-events: none;
+        }
+        
+        #unwrap-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #unwrap-btn:hover {
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
+            transform: scale(1.05);
+        }
+
+        /* --- Main UI Layer --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0; /* Hidden initially */
+            transition: opacity 2s ease-in;
+        }
+        #ui-layer.visible { opacity: 1; }
+
+        .header h1 {
+            margin-top: 5vh; font-weight: 700; letter-spacing: 4px; 
+            color: #E6E6FA; 
+            font-size: 20px; text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(147, 112, 219, 0.6);
+            border-bottom: 2px solid rgba(148, 0, 211, 0.5); 
+            padding-bottom: 15px;
+        }
+        
+        /* Audio Controls */
+        .audio-controls {
+            position: absolute; top: 40px; right: 40px; pointer-events: auto;
+            display: flex; gap: 10px;
+        }
+
+        .audio-btn {
+            color: #E6E6FA; border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.5); padding: 0; border-radius: 50%;
+            width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.3s; font-size: 16px;
+        }
+        .audio-btn:hover { background: rgba(147, 112, 219, 0.3); box-shadow: 0 0 15px #9370DB; }
+
+        /* Status Pill */
+        .status-pill {
+            position: absolute; 
+            bottom: 160px; 
+            right: 40px;
+            padding: 8px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px; color: #fff; font-size: 11px;
+            letter-spacing: 3px; background: rgba(20, 10, 30, 0.8);
+            backdrop-filter: blur(10px); text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+            transition: all 0.5s ease;
+            pointer-events: auto;
+        }
+
+        /* Controls */
+        .controls-panel {
+            position: absolute; bottom: 30px; left: 40px; width: 200px;
+            background: transparent; pointer-events: auto; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .control-item {
+            display: flex; align-items: center; margin-bottom: 12px;
+            color: rgba(230, 230, 250, 0.7); font-family: 'Lato', sans-serif; font-size: 11px; letter-spacing: 1px;
+        }
+        .icon { width: 24px; color: #B19CD9; font-size: 14px; text-align: center; text-shadow: 0 0 10px #9370DB; }
+        b { color: #fff; font-weight: 700; margin-right: 6px; }
+
+        .btn-upload {
+            width: 100%; margin-top: 10px; 
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(186, 85, 211, 0.3); color: #E6E6FA;
+            padding: 12px; cursor: pointer; border-radius: 4px;
+            font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+            transition: all 0.4s; font-family: 'Cinzel', serif; font-weight: 700;
+            backdrop-filter: blur(4px);
+        }
+        .btn-upload:hover { 
+            background: rgba(138, 43, 226, 0.2);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.3); border-color: #FFF; 
+        }
+
+        #cam-container {
+            position: absolute; bottom: 40px; right: 40px; width: 140px; height: 105px;
+            border-radius: 8px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.2);
+            opacity: 0; transition: opacity 0.8s;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #cam-preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.8; }
+        
+        #file-input { display: none; }
+    </style>
+
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm",
+                "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Intro Layer -->
+    <div id="intro-layer">
+        <div id="intro-text-container"></div>
+        <button id="unwrap-btn">Unwrapping Your Christmas Gift KEKE</button>
+    </div>
+
+    <!-- Main UI -->
+    <div id="ui-layer">
+        <div class="header">
+            <h1>Le sapin de Noël d’Athena & Kehan</h1>
+        </div>
+        
+        <!-- Audio Controls -->
+        <div class="audio-controls">
+            <div id="prev-btn" class="audio-btn">⏮</div>
+            <div id="sound-btn" class="audio-btn">🔇</div>
+            <div id="next-btn" class="audio-btn">⏭</div>
+        </div>
+
+        <div id="status-pill" class="status-pill">Tree Form</div>
+
+        <div class="controls-panel">
+            <div class="control-item"><span class="icon" style="color:#FFD700">●</span> <b>FIST</b> &nbsp;Gather Tree</div>
+            <div class="control-item"><span class="icon" style="color:#B19CD9">○</span> <b>OPEN</b> &nbsp;Starfall</div>
+            <div class="control-item"><span class="icon" style="color:#89CFF0">◎</span> <b>PINCH</b> &nbsp;View Memory</div>
+            
+            <button class="btn-upload" onclick="document.getElementById('file-input').click()">Add Memory</button>
+            <input type="file" id="file-input" multiple accept="image/*">
+        </div>
+        
+        <div id="cam-container"><video id="cam-preview" autoplay playsinline muted></video></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+        import { getFirestore, collection, addDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
+
+        // --- Intro Logic ---
+        const introLines = [
+            "Hiii Kehan",
+            "This is a gift made by Athena",
+            "for u",
+            "and for us",
+            "Merry Xmas",
+            "Joyeux Noël",
+            "圣诞快乐"
+        ];
+
+        async function playIntro() {
+            const container = document.getElementById('intro-text-container');
+            const btn = document.getElementById('unwrap-btn');
+
+            for (let i = 0; i < introLines.length; i++) {
+                const div = document.createElement('div');
+                div.className = 'intro-line';
+                if (introLines[i].includes('Athena') || introLines[i].includes('Kehan')) {
+                    div.classList.add('special');
+                }
+                div.innerText = introLines[i];
+                container.appendChild(div);
+                void div.offsetWidth; // Force reflow
+                div.classList.add('visible');
+                await new Promise(r => setTimeout(r, 1200));
+            }
+            
+            btn.classList.add('visible');
+            btn.addEventListener('click', () => {
+                const introLayer = document.getElementById('intro-layer');
+                introLayer.style.opacity = 0;
+                setTimeout(() => {
+                    introLayer.style.display = 'none';
+                }, 1500);
+                
+                document.getElementById('ui-layer').classList.add('visible');
+                AudioSys.init();
+            });
+        }
+
+        playIntro();
+
+        // --- Firebase Init ---
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-tree';
+
+        // --- Royal Configuration ---
+        const CONFIG = {
+            colors: {
+                gold: new THREE.Color('#FFD700'),
+                red: new THREE.Color('#B22222'),      
+                green: new THREE.Color('#0B2610'),    
+                silver: new THREE.Color('#C0C0C0'),
+                babyBlue: new THREE.Color('#89CFF0'), 
+                royalPurple: new THREE.Color('#663399'), 
+                deepIndigo: new THREE.Color('#4B0082'),  
+                lavender: new THREE.Color('#D8BFD8'),    
+                warmWhite: new THREE.Color('#FFF8DC') 
+            },
+            particleCount: {
+                shards: 7500,   
+                baubles: 1200,  
+                lights: 1500    
+            },
+            treeHeight: 48,     
+            baseRadius: 20      
+        };
+
+        const STATE = {
+            TREE: 'TREE',
+            SCATTER: 'GALAXY',
+            ZOOM: 'MEMORY'
+        };
+
+        let currentState = STATE.TREE;
+        let isHandDetected = false;
+        let handPosition = { x: 0, y: 0 };
+        let globalPhotoCounter = 0;
+        let focusedPhotoIndex = -1;
+
+        let scene, camera, renderer, composer, clock;
+        let instancedMeshes = {}; 
+        let particlesData = [];   
+        let photoParticles = [];  
+        const loadedPhotoIds = new Set();
+        let dummy = new THREE.Object3D();
+        let dummy2 = new THREE.Object3D(); 
+        let centerGlow, snowSystem;
+
+        // --- Audio System ---
+        const AudioSys = {
+            ctx: null,
+            masterGain: null,
+            isMuted: true,
+            melodyTimer: null,
+            noteIndex: 0,
+            songIndex: 0,
+            
+            notes: {
+                C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, Fs4: 369.99, G4: 392.00, A4: 440.00, B4: 493.88,
+                C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99
+            },
+
+            playlist: [
+                {
+                    name: "We Wish You a Merry Christmas",
+                    bpm: 140,
+                    melody: [
+                        {n: 'D4', d: 1}, 
+                        {n: 'G4', d: 1}, {n: 'G4', d: 0.5}, {n: 'A4', d: 0.5}, {n: 'G4', d: 0.5}, {n: 'Fs4', d: 0.5},
+                        {n: 'E4', d: 1}, {n: 'E4', d: 1},
+                        {n: 'E4', d: 1}, 
+                        {n: 'A4', d: 1}, {n: 'A4', d: 0.5}, {n: 'B4', d: 0.5}, {n: 'A4', d: 0.5}, {n: 'G4', d: 0.5},
+                        {n: 'Fs4', d: 1}, {n: 'D4', d: 1},
+                        {n: 'D4', d: 1}, 
+                        {n: 'B4', d: 1}, {n: 'B4', d: 0.5}, {n: 'C5', d: 0.5}, {n: 'B4', d: 0.5}, {n: 'A4', d: 0.5},
+                        {n: 'G4', d: 1}, {n: 'E4', d: 1},
+                        {n: 'D4', d: 0.5}, {n: 'D4', d: 0.5}, {n: 'E4', d: 1}, {n: 'A4', d: 1}, {n: 'Fs4', d: 1},
+                        {n: 'G4', d: 3}
+                    ]
+                },
+                {
+                    name: "Santa Tell Me",
+                    bpm: 120,
+                    melody: [
+                        {n: 'G4', d: 0.5}, {n: 'A4', d: 0.5}, {n: 'B4', d: 1.5},
+                        {n: 'B4', d: 0.5}, {n: 'A4', d: 0.5}, {n: 'G4', d: 0.5}, {n: 'G4', d: 0.5},
+                        {n: 'A4', d: 0.5}, {n: 'G4', d: 0.5}, {n: 'E4', d: 2},
+                        {n: 'G4', d: 0.5}, {n: 'A4', d: 0.5}, {n: 'B4', d: 1.5}, 
+                        {n: 'B4', d: 0.5}, {n: 'C5', d: 0.5}, {n: 'B4', d: 1.5},
+                        {n: 'A4', d: 2} 
+                    ]
+                },
+                {
+                    name: "Jingle Bells",
+                    bpm: 180,
+                    melody: [
+                        {n: 'E4', d: 1}, {n: 'E4', d: 1}, {n: 'E4', d: 2},
+                        {n: 'E4', d: 1}, {n: 'E4', d: 1}, {n: 'E4', d: 2},
+                        {n: 'E4', d: 1}, {n: 'G4', d: 1}, {n: 'C4', d: 1.5}, {n: 'D4', d: 0.5}, {n: 'E4', d: 4}
+                    ]
+                }
+            ],
+
+            init: function() {
+                if(this.ctx) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0; 
+                
+                this.playMelody();
+                
+                document.getElementById('sound-btn').innerText = "🔊";
+                this.isMuted = false;
+                this.fadeIn();
+            },
+            
+            toggle: function() {
+                if(!this.ctx) { this.init(); return; }
+                if(this.isMuted) {
+                    this.ctx.resume();
+                    this.fadeIn();
+                    document.getElementById('sound-btn').innerText = "🔊";
+                    this.isMuted = false;
+                } else {
+                    this.fadeOut();
+                    document.getElementById('sound-btn').innerText = "🔇";
+                    this.isMuted = true;
+                }
+            },
+
+            nextSong: function() {
+                this.songIndex = (this.songIndex + 1) % this.playlist.length;
+                this.noteIndex = 0;
+                if(this.melodyTimer) clearTimeout(this.melodyTimer);
+                this.playMelody();
+            },
+
+            prevSong: function() {
+                this.songIndex = (this.songIndex - 1 + this.playlist.length) % this.playlist.length;
+                this.noteIndex = 0;
+                if(this.melodyTimer) clearTimeout(this.melodyTimer);
+                this.playMelody();
+            },
+            
+            fadeIn: function() {
+                this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+                this.masterGain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 2);
+            },
+            
+            fadeOut: function() {
+                this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+                this.masterGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+            },
+            
+            playMelody: function() {
+                const currentSong = this.playlist[this.songIndex];
+                
+                const step = () => {
+                    const noteData = currentSong.melody[this.noteIndex];
+                    const freq = this.notes[noteData.n];
+                    const duration = noteData.d * (60 / currentSong.bpm);
+                    
+                    if (!this.isMuted) this.playBellSound(freq, duration);
+                    
+                    this.noteIndex++;
+                    if (this.noteIndex >= currentSong.melody.length) {
+                        this.noteIndex = 0; 
+                        this.songIndex = (this.songIndex + 1) % this.playlist.length;
+                    }
+                    
+                    this.melodyTimer = setTimeout(step, duration * 1000);
+                };
+                step();
+            },
+
+            playBellSound: function(freq, duration) {
+                if(!this.ctx || this.isMuted) return;
+                const t = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, t);
+                
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.05); 
+                gain.gain.exponentialRampToValueAtTime(0.001, t + duration * 1.5); 
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(t);
+                osc.stop(t + duration * 2);
+
+                const osc2 = this.ctx.createOscillator();
+                const gain2 = this.ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(freq * 2, t); 
+                
+                gain2.gain.setValueAtTime(0, t);
+                gain2.gain.linearRampToValueAtTime(0.05, t + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.5); 
+                
+                osc2.connect(gain2);
+                gain2.connect(this.masterGain);
+                osc2.start(t);
+                osc2.stop(t + 1);
+            },
+            
+            playChime: function() {
+                if(!this.ctx || this.isMuted) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, t);
+                osc.frequency.exponentialRampToValueAtTime(440, t + 0.5);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(t);
+                osc.stop(t + 0.5);
+            },
+            
+            playWhoosh: function() {
+                if(!this.ctx || this.isMuted) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+                osc.type = 'sawtooth';
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200, t);
+                filter.frequency.linearRampToValueAtTime(800, t + 0.5);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.05, t + 0.1);
+                gain.gain.linearRampToValueAtTime(0, t + 1.0);
+                osc.start(t);
+                osc.stop(t + 1.0);
+            }
+        };
+
+        async function init() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.warn("Auth failed:", e);
+                try { await signInAnonymously(auth); } catch(e2) {}
+            }
+            
+            if (auth.currentUser) {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tree_photos'), orderBy('timestamp'));
+                onSnapshot(q, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            if (!loadedPhotoIds.has(change.doc.id)) {
+                                loadedPhotoIds.add(change.doc.id);
+                                createPolaroid(data.url, data.position, data.rotation, data.galaxyPosition);
+                            }
+                        }
+                    });
+                }, (err) => console.error("Firestore Listen Error:", err));
+            }
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x040206, 0.015);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 4, 60); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            document.body.appendChild(renderer.domElement);
+
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.strength = 1.2; 
+            bloomPass.radius = 0.55;
+            bloomPass.threshold = 0.4; 
+            
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            setupLights();
+            createCenterPiece();
+            initParticles();
+            createSnow(); 
+            
+            window.addEventListener('resize', onResize);
+            setupUpload();
+            
+            document.getElementById('sound-btn').addEventListener('click', () => AudioSys.toggle());
+            document.getElementById('next-btn').addEventListener('click', () => AudioSys.nextSong());
+            document.getElementById('prev-btn').addEventListener('click', () => AudioSys.prevSong());
+
+            clock = new THREE.Clock();
+            initAI();
+            animate();
+        }
+
+        function setupLights() {
+            const ambientLight = new THREE.AmbientLight(0xe6e6fa, 0.15);
+            scene.add(ambientLight);
+            
+            const mainLight = new THREE.PointLight(0xffcc66, 2, 60);
+            mainLight.position.set(0, 15, 5);
+            scene.add(mainLight);
+
+            const rim1 = new THREE.SpotLight(0x8800ff, 6);
+            rim1.position.set(40, 30, 20);
+            rim1.lookAt(0, 10, 0);
+            scene.add(rim1);
+
+            const rim2 = new THREE.SpotLight(0x89CFF0, 4); 
+            rim2.position.set(-40, 10, -20);
+            rim2.lookAt(0, 10, 0);
+            scene.add(rim2);
+        }
+
+        function createCenterPiece() {
+            const geo = new THREE.OctahedronGeometry(2.5, 0); 
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.gold, 
+                emissive: CONFIG.colors.gold,
+                emissiveIntensity: 3.0,
+                roughness: 0.1,
+                metalness: 1.0
+            });
+            centerGlow = new THREE.Mesh(geo, mat);
+            centerGlow.position.set(0, 26, 0); 
+            scene.add(centerGlow);
+        }
+
+        function initParticles() {
+            const shardGeo = new THREE.TetrahedronGeometry(0.4, 0); 
+            const shardMat = new THREE.MeshStandardMaterial({
+                color: CONFIG.colors.green,
+                roughness: 0.6,
+                metalness: 0.2,
+                flatShading: true
+            });
+            instancedMeshes.shards = new THREE.InstancedMesh(shardGeo, shardMat, CONFIG.particleCount.shards);
+
+            const baubleGeo = new THREE.SphereGeometry(0.75, 32, 16); 
+            const baubleMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff, 
+                roughness: 0.05, 
+                metalness: 0.95,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1
+            });
+            instancedMeshes.baubles = new THREE.InstancedMesh(baubleGeo, baubleMat, CONFIG.particleCount.baubles);
+
+            const lightGeo = new THREE.SphereGeometry(0.25, 8, 8); 
+            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+            instancedMeshes.lights = new THREE.InstancedMesh(lightGeo, lightMat, CONFIG.particleCount.lights);
+
+            const capGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.25, 8);
+            const capMat = new THREE.MeshStandardMaterial({
+                color: CONFIG.colors.gold, roughness: 0.2, metalness: 1.0
+            });
+            instancedMeshes.baubleCaps = new THREE.InstancedMesh(capGeo, capMat, CONFIG.particleCount.baubles);
+
+            for(let key in instancedMeshes) {
+                scene.add(instancedMeshes[key]);
+            }
+            
+            generateLayout(instancedMeshes.shards, 'shards', CONFIG.particleCount.shards);
+            generateLayout(instancedMeshes.baubles, 'baubles', CONFIG.particleCount.baubles);
+            generateLayout(instancedMeshes.lights, 'lights', CONFIG.particleCount.lights);
+        }
+
+        function createSnow() {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            for(let i=0; i<2000; i++) {
+                pos.push((Math.random()-0.5)*100, (Math.random()-0.5)*80, (Math.random()-0.5)*100);
+            }
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                color: 0xE6E6FA, size: 0.25, transparent: true, opacity: 0.8
+            });
+            snowSystem = new THREE.Points(geo, mat);
+            scene.add(snowSystem);
+        }
+
+        function generateLayout(mesh, type, count) {
+            const tempColor = new THREE.Color();
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const h = (Math.random() * CONFIG.treeHeight) - (CONFIG.treeHeight/2) + 2; 
+                const hNorm = (h + CONFIG.treeHeight/2) / CONFIG.treeHeight; 
+                const maxR = CONFIG.baseRadius * (1 - hNorm); 
+                let r = maxR * Math.sqrt(Math.random());
+                if (type === 'baubles') r = maxR * (0.85 + Math.random() * 0.25); 
+                if (type === 'lights') r = maxR * (0.7 + Math.random() * 0.3); 
+                const tx = Math.cos(angle) * r;
+                const tz = Math.sin(angle) * r;
+                const ty = h;
+
+                const arms = 3;
+                const spinFactor = 4.0; 
+                const galaxyRadius = 60; 
+                const gR = Math.pow(Math.random(), 0.5) * galaxyRadius; 
+                const armOffset = Math.floor(Math.random() * arms) * (Math.PI * 2 / arms);
+                const gAngle = armOffset + (gR * 0.1 * spinFactor);
+                const spread = (Math.random() - 0.5) * 5.0 * (1 - gR/galaxyRadius);
+                const gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
+                const gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
+                const gy = (Math.random() - 0.5) * (15 * Math.exp(-gR * 0.05)); 
+
+                if (type === 'baubles') {
+                    const rand = Math.random();
+                    if (rand > 0.85) tempColor.set(CONFIG.colors.royalPurple);
+                    else if (rand > 0.70) tempColor.set(CONFIG.colors.deepIndigo);
+                    else if (rand > 0.55) tempColor.set(CONFIG.colors.gold);
+                    else if (rand > 0.40) tempColor.set(CONFIG.colors.babyBlue); 
+                    else if (rand > 0.30) tempColor.set(CONFIG.colors.lavender); 
+                    else if (rand > 0.15) tempColor.set(CONFIG.colors.silver);
+                    else tempColor.set(CONFIG.colors.red); 
+                    mesh.setColorAt(i, tempColor);
+                }
+                if (type === 'shards') {
+                    if (Math.random() > 0.9) tempColor.set(CONFIG.colors.lavender); 
+                    else tempColor.set(CONFIG.colors.green).offsetHSL(0, 0, (Math.random()-0.5)*0.1);
+                    mesh.setColorAt(i, tempColor);
+                }
+                if (type === 'lights') {
+                    const rand = Math.random();
+                    if (rand > 0.6) tempColor.set(CONFIG.colors.warmWhite);
+                    else if (rand > 0.4) tempColor.set(CONFIG.colors.gold);
+                    else if (rand > 0.2) tempColor.set(CONFIG.colors.royalPurple); 
+                    else tempColor.set(CONFIG.colors.babyBlue); 
+                    mesh.setColorAt(i, tempColor);
+                }
+
+                particlesData.push({
+                    mesh: mesh, index: i, type: type,
+                    treePos: new THREE.Vector3(tx, ty, tz),
+                    scatterPos: new THREE.Vector3(gx, gy, gz),
+                    currentPos: new THREE.Vector3(tx, ty, tz), 
+                    speed: 0.5 + Math.random(), phase: Math.random() * 10,
+                    baseColor: tempColor.clone(),
+                    baseScale: (type === 'shards') ? (0.6 + Math.random()*0.4) : (0.8 + Math.random()*0.5)
+                });
+
+                dummy.position.set(tx, ty, tz);
+                dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                dummy.updateMatrix();
+                mesh.setMatrixAt(i, dummy.matrix);
+            }
+            if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+            mesh.instanceMatrix.needsUpdate = true;
+        }
+
+        // Helper to resize images for efficiency
+        function resizeImage(base64Str, maxWidth = 512, maxHeight = 512) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64Str;
+                img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+            });
+        }
+
+        function createPolaroid(url, pos, rot, galaxyPos) {
+            new THREE.TextureLoader().load(url, (tex) => {
+                tex.colorSpace = THREE.SRGBColorSpace; 
+                const imgWidth = tex.image.width;
+                const imgHeight = tex.image.height;
+                const aspect = imgWidth / imgHeight;
+                let worldW = 3.5; let worldH = 3.5 / aspect;
+                
+                const frameGeo = new THREE.PlaneGeometry(worldW + 0.6, worldH + 1.2);
+                const frameMat = new THREE.MeshStandardMaterial({ color: 0xFFF8DC, roughness: 0.5, metalness: 0.2 });
+                const frame = new THREE.Mesh(frameGeo, frameMat);
+                
+                const imgGeo = new THREE.PlaneGeometry(worldW, worldH);
+                const imgMat = new THREE.MeshBasicMaterial({ map: tex });
+                const img = new THREE.Mesh(imgGeo, imgMat);
+                img.position.z = 0.02; img.position.y = 0.2; 
+                frame.add(img);
+
+                const bowGeo = new THREE.SphereGeometry(0.35); 
+                const bowMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.royalPurple });
+                const bow = new THREE.Mesh(bowGeo, bowMat);
+                bow.position.set(0, (worldH/2) + 0.6, 0.1);
+                frame.add(bow);
+
+                // Use saved position or generate new one
+                let tx, ty, tz, gx, gy, gz;
+                
+                if (pos) {
+                    tx = pos.x; ty = pos.y; tz = pos.z;
+                } else {
+                    const t = Math.random();
+                    const h = (t * 30) - 10;
+                    const r = 18 * (1 - t) + 3.0; 
+                    const angle = Math.random() * Math.PI * 2;
+                    tx = Math.cos(angle) * r;
+                    ty = h;
+                    tz = Math.sin(angle) * r;
+                }
+
+                if (galaxyPos) {
+                    gx = galaxyPos.x; gy = galaxyPos.y; gz = galaxyPos.z;
+                } else {
+                    const arms = 3; const spinFactor = 4.0; const galaxyRadius = 50;
+                    const gR = Math.pow(Math.random(), 0.5) * galaxyRadius; 
+                    const armOffset = Math.floor(Math.random() * arms) * (Math.PI * 2 / arms);
+                    const gAngle = armOffset + (gR * 0.1 * spinFactor);
+                    const spread = (Math.random() - 0.5) * 5.0;
+                    gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
+                    gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
+                    gy = (Math.random() - 0.5) * 10;
+                }
+
+                frame.position.set(tx, ty, tz);
+                frame.lookAt(0, ty, 0); frame.rotation.y += Math.PI; 
+                scene.add(frame);
+
+                photoParticles.push({
+                    mesh: frame, treePos: new THREE.Vector3(tx, ty, tz),
+                    treeRot: frame.rotation.clone(), 
+                    scatterPos: new THREE.Vector3(gx, gy, gz),
+                    scatterRot: new THREE.Euler(Math.random(), Math.random(), Math.random()),
+                    baseScale: 1.0 
+                });
+            });
+        }
+
+        function setupUpload() {
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                if (e.target.files) Array.from(e.target.files).forEach(f => {
+                    const r = new FileReader();
+                    r.onload = async (evt) => {
+                        const rawBase64 = evt.target.result;
+                        const resizedBase64 = await resizeImage(rawBase64);
+                        
+                        // Calculate position once here for persistence
+                        const t = Math.random();
+                        const h = (t * 30) - 10;
+                        const rRadius = 18 * (1 - t) + 3.0; 
+                        const angle = Math.random() * Math.PI * 2;
+                        const tx = Math.cos(angle) * rRadius;
+                        const tz = Math.sin(angle) * rRadius;
+
+                        // Galaxy calc
+                        const arms = 3; const spinFactor = 4.0; const galaxyRadius = 50;
+                        const gR = Math.pow(Math.random(), 0.5) * galaxyRadius; 
+                        const armOffset = Math.floor(Math.random() * arms) * (Math.PI * 2 / arms);
+                        const gAngle = armOffset + (gR * 0.1 * spinFactor);
+                        const spread = (Math.random() - 0.5) * 5.0;
+                        const gx = Math.cos(gAngle) * gR + Math.cos(gAngle + Math.PI/2) * spread;
+                        const gz = Math.sin(gAngle) * gR + Math.sin(gAngle + Math.PI/2) * spread;
+                        const gy = (Math.random() - 0.5) * 10;
+                        
+                        try {
+                            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tree_photos'), {
+                                url: resizedBase64,
+                                position: { x: tx, y: h, z: tz },
+                                rotation: { x: 0, y: 0, z: 0 }, // Simplified rot storage
+                                galaxyPosition: { x: gx, y: gy, z: gz },
+                                timestamp: Date.now()
+                            });
+                            AudioSys.playChime();
+                        } catch(err) {
+                            console.error("Upload error", err);
+                        }
+                    };
+                    r.readAsDataURL(f);
+                });
+            });
+        }
+
+        function updateUI(state) {
+            const pill = document.getElementById('status-pill');
+            let t = "";
+            let color = "#aaa";
+            let border = "rgba(255,255,255,0.1)";
+            if(state === STATE.TREE) { t = "Tree Form"; }
+            if(state === STATE.SCATTER) { t = "Galaxy Mode"; color = "#9370DB"; border = "rgba(147, 112, 219, 0.5)"; }
+            if(state === STATE.ZOOM) { t = "Viewing Memory"; color = "#FFF"; border = "#FFF"; }
+            pill.innerText = t;
+            pill.style.color = color;
+            pill.style.borderColor = border;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            if (currentState === STATE.TREE) {
+                scene.rotation.y += 0.002; scene.rotation.x *= 0.95; scene.rotation.z *= 0.95;
+            } else if (currentState === STATE.SCATTER) {
+                if (isHandDetected) {
+                    scene.rotation.y += (handPosition.x * 0.5 - scene.rotation.y) * 0.05;
+                    scene.rotation.x += (handPosition.y * 0.5 - scene.rotation.x) * 0.05;
+                } else {
+                    scene.rotation.y += 0.002;
+                }
+            } else if (currentState === STATE.ZOOM) {
+                scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
+            }
+
+            centerGlow.rotation.y = time * 0.5;
+            centerGlow.scale.setScalar(1 + Math.sin(time*2) * 0.1);
+
+            let capCounter = 0;
+            particlesData.forEach(p => {
+                let target;
+                if (currentState === STATE.TREE) {
+                    target = p.treePos;
+                } else {
+                    target = p.scatterPos.clone();
+                    target.y += Math.sin(time * 0.5 + p.phase) * 2.0;
+                }
+                p.currentPos.lerp(target, 0.04);
+                dummy.position.copy(p.currentPos);
+                if (p.type === 'shards' || p.type === 'gifts' || p.type === 'stars') {
+                    dummy.rotation.set(time * 0.2 + p.index, time * 0.1, 0);
+                } else {
+                    dummy.rotation.set(0, 0, 0);
+                }
+                let scale = p.baseScale;
+                const tempCol = new THREE.Color();
+                if (p.type === 'lights') {
+                    const blink = Math.sin(time * 3 + p.phase);
+                    scale *= (0.8 + 0.4 * blink);
+                    if (blink > 0.5) p.mesh.setColorAt(p.index, tempCol.copy(p.baseColor).multiplyScalar(1.5));
+                    else p.mesh.setColorAt(p.index, p.baseColor);
+                }
+                if (currentState === STATE.ZOOM) scale *= 0.3; 
+                dummy.scale.setScalar(scale);
+                dummy.updateMatrix();
+                p.mesh.setMatrixAt(p.index, dummy.matrix);
+                if (p.type === 'baubles') {
+                    dummy2.position.copy(p.currentPos);
+                    dummy2.position.y += 0.45 * scale; 
+                    dummy2.rotation.copy(dummy.rotation);
+                    dummy2.scale.setScalar(scale);
+                    dummy2.updateMatrix();
+                    instancedMeshes.baubleCaps.setMatrixAt(capCounter++, dummy2.matrix);
+                }
+            });
+            if (instancedMeshes.lights) instancedMeshes.lights.instanceColor.needsUpdate = true;
+            for(let key in instancedMeshes) instancedMeshes[key].instanceMatrix.needsUpdate = true;
+
+            const snowPos = snowSystem.geometry.attributes.position.array;
+            for(let i=1; i<snowPos.length; i+=3) {
+                snowPos[i] -= 0.1; 
+                if (snowPos[i] < -40) snowPos[i] = 40;
+            }
+            snowSystem.geometry.attributes.position.needsUpdate = true;
+
+            photoParticles.forEach((p, idx) => {
+                if (currentState === STATE.ZOOM && idx === focusedPhotoIndex) {
+                    const tPos = new THREE.Vector3(0, 0, 40); 
+                    p.mesh.position.lerp(tPos, 0.08);
+                    p.mesh.lookAt(camera.position); 
+                    p.mesh.scale.lerp(new THREE.Vector3(2.0, 2.0, 2.0), 0.08);
+                    p.mesh.rotation.z = 0;
+                    return;
+                } 
+                if (currentState === STATE.TREE) {
+                    p.mesh.position.lerp(p.treePos, 0.08);
+                    p.mesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.08);
+                    p.mesh.lookAt(0, p.mesh.position.y, 0);
+                    p.mesh.rotation.y += Math.PI; 
+                    p.mesh.rotation.z = Math.sin(time + idx) * 0.05;
+                } else { 
+                    const tPos = p.scatterPos.clone();
+                    p.mesh.position.lerp(tPos, 0.04);
+                    p.mesh.scale.lerp(new THREE.Vector3(0.6, 0.6, 0.6), 0.08);
+                    p.mesh.rotation.x += 0.005;
+                    p.mesh.rotation.y += 0.005;
+                }
+            });
+            composer.render();
+        }
+
+        async function initAI() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+                const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
+                    runningMode: "VIDEO", numHands: 1
+                });
+                const video = document.getElementById('cam-preview');
+                navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } }).then(stream => {
+                    video.srcObject = stream;
+                    video.addEventListener('loadeddata', () => {
+                        const loader = document.getElementById('loader');
+                        if (loader) {
+                            loader.style.opacity = 0;
+                            setTimeout(()=>loader.remove(), 1500);
+                        }
+                        document.getElementById('cam-container').style.opacity = 1;
+                        loop(handLandmarker, video);
+                    });
+                });
+            } catch (e) { console.warn("AI Init failed, fallback to mouse", e); setupMouseFallback(); }
+        }
+
+        let lastTime = -1;
+        function loop(lm, vid) {
+            if (vid.currentTime !== lastTime) {
+                lastTime = vid.currentTime;
+                const result = lm.detectForVideo(vid, performance.now());
+                if (result.landmarks && result.landmarks.length > 0) {
+                    isHandDetected = true;
+                    const h = result.landmarks[0];
+                    handPosition.x = (h[9].x - 0.5) * 2;
+                    handPosition.y = (h[9].y - 0.5) * 2;
+                    const indexTip = h[8];
+                    const thumbTip = h[4];
+                    const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+                    const isPinching = pinchDist < 0.06;
+                    let openCount = 0;
+                    if(h[8].y < h[6].y) openCount++; 
+                    if(h[12].y < h[10].y) openCount++; 
+                    if(h[16].y < h[14].y) openCount++; 
+                    if(h[20].y < h[18].y) openCount++; 
+                    let nextState = currentState;
+                    if (isPinching && currentState === STATE.SCATTER) {
+                        nextState = STATE.ZOOM;
+                    } else if (openCount >= 4) {
+                        nextState = STATE.SCATTER;
+                    } else if (openCount <= 1 && !isPinching) {
+                        nextState = STATE.TREE; 
+                    }
+                    if (nextState !== currentState) {
+                        currentState = nextState;
+                        updateUI(currentState);
+                        AudioSys.playWhoosh(); 
+                        if (currentState === STATE.ZOOM && photoParticles.length > 0) {
+                            focusedPhotoIndex = globalPhotoCounter % photoParticles.length;
+                            globalPhotoCounter++;
+                            AudioSys.playChime(); 
+                        } else {
+                            focusedPhotoIndex = -1;
+                        }
+                    }
+                }
+            }
+            requestAnimationFrame(() => loop(lm, vid));
+        }
+
+        function setupMouseFallback() {
+            window.addEventListener('keydown', (e) => {
+                if(e.key === '1') currentState = STATE.TREE;
+                if(e.key === '2') currentState = STATE.SCATTER;
+                if(e.key === '3') {
+                    currentState = STATE.ZOOM;
+                    if (photoParticles.length > 0) {
+                        focusedPhotoIndex = globalPhotoCounter % photoParticles.length;
+                        globalPhotoCounter++;
+                    }
+                }
+                updateUI(currentState);
+                AudioSys.playWhoosh();
+            });
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+    </script>
+</body>
+</html>
