@@ -688,17 +688,17 @@
 
         // === NEW: Calculate gallery position (horizontal carousel) ===
         function calculateGalleryPosition(index, totalPhotos, scrollOffset) {
-            const spacing = 8; // Space between photos
+            const spacing = 10; // More space between photos
             const centerOffset = scrollOffset * (totalPhotos - 1) * spacing;
             const x = (index * spacing) - centerOffset;
             const y = 0;
             
             // Curve the gallery slightly - photos further from center go back
             const distFromCenter = Math.abs(x);
-            const z = 30 - (distFromCenter * 0.15);
+            const z = 35 - (distFromCenter * 0.1);
             
-            // Photos at edges are smaller and more faded
-            const scale = Math.max(0.3, 1.2 - (distFromCenter * 0.03));
+            // Center photo much bigger, edges smaller
+            const scale = Math.max(0.4, 1.8 - (distFromCenter * 0.04));
             
             return { x, y, z, scale, distFromCenter };
         }
@@ -1144,15 +1144,15 @@
                 scene.rotation.z *= 0.95;
                 particleTargetOpacity = 0.2;
                 
-                // Smooth hand tracking for gallery scroll
+                // Smooth hand tracking for gallery scroll - SLOWER
                 if (isHandDetected) {
-                    smoothHandX += (handPosition.x - smoothHandX) * 0.1;
+                    smoothHandX += (handPosition.x - smoothHandX) * 0.03; // Much slower tracking
                     // Map hand position (-1 to 1) to scroll position (0 to 1)
                     galleryTargetScroll = Math.max(0, Math.min(1, (smoothHandX + 1) / 2));
                 }
                 
-                // Smooth scroll
-                galleryScrollPosition += (galleryTargetScroll - galleryScrollPosition) * 0.08;
+                // Smooth scroll - SLOWER
+                galleryScrollPosition += (galleryTargetScroll - galleryScrollPosition) * 0.04;
                 
                 // Calculate center photo index
                 if (photoParticles.length > 0) {
@@ -1260,21 +1260,21 @@
                     const galPos = calculateGalleryPosition(idx, photoParticles.length, galleryScrollPosition);
                     const tPos = new THREE.Vector3(galPos.x, galPos.y, galPos.z);
                     
-                    p.mesh.position.lerp(tPos, 0.1);
+                    p.mesh.position.lerp(tPos, 0.06); // Slower movement
                     
                     // Face camera
                     p.mesh.lookAt(camera.position);
                     
-                    // Scale based on distance from center
+                    // Scale based on distance from center - slower scaling
                     const targetScale = galPos.scale;
-                    p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+                    p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
                     
                     // Slight tilt for 3D effect
-                    p.mesh.rotation.y = galPos.x * 0.02;
+                    p.mesh.rotation.y = galPos.x * 0.015;
                     p.mesh.rotation.z = 0;
                     
-                    // Fade photos at edges
-                    const opacity = Math.max(0.2, 1 - galPos.distFromCenter * 0.025);
+                    // Fade photos at edges - center is fully visible
+                    const opacity = Math.max(0.3, 1 - galPos.distFromCenter * 0.02);
                     p.mesh.material.opacity = opacity;
                     p.mesh.material.transparent = true;
                     
