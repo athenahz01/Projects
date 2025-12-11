@@ -681,14 +681,15 @@
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
 
-            // Create photo group for z-ordering
-            photoGroup = new THREE.Group();
-            scene.add(photoGroup);
-
             setupLights();
             createCenterPiece();
             initParticles();
             createSnow(); 
+            
+            // Create photo group LAST so it renders on top of particles
+            photoGroup = new THREE.Group();
+            photoGroup.renderOrder = 100;
+            scene.add(photoGroup); 
             
             window.addEventListener('resize', onResize);
             setupUpload();
@@ -1058,16 +1059,19 @@
                 const isFocused = currentState === STATE.ZOOM && idx === focusedPhotoIndex;
                 
                 if (isFocused) {
-                    // Focused photo: bring to front, center, and enlarge
+                    // Focused photo: center and enlarge, but not too close
                     p.mesh.visible = true;
-                    const tPos = new THREE.Vector3(0, 2, 55); // Very close to camera
-                    p.mesh.position.lerp(tPos, 0.1);
-                    p.mesh.lookAt(camera.position);
-                    p.mesh.scale.lerp(new THREE.Vector3(2.8, 2.8, 2.8), 0.1);
-                    p.mesh.rotation.z = 0;
+                    const tPos = new THREE.Vector3(0, 0, 35); // Moderate distance
+                    p.mesh.position.lerp(tPos, 0.08);
                     
-                    // High render order ensures it draws on top
-                    p.mesh.renderOrder = 999;
+                    // Face camera
+                    const lookTarget = camera.position.clone();
+                    p.mesh.lookAt(lookTarget);
+                    
+                    p.mesh.scale.lerp(new THREE.Vector3(2.5, 2.5, 2.5), 0.08);
+                    
+                    // Keep photo upright
+                    p.mesh.rotation.z = 0;
                     
                 } else if (currentState === STATE.ZOOM) {
                     // Other photos in zoom mode: push to background, make smaller
