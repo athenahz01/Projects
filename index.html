@@ -249,6 +249,59 @@
             background: #FFD700;
             border-radius: 50%;
         }
+
+        /* Shooting star wish notification */
+        #wish-prompt {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #FFD700;
+            font-family: 'Great Vibes', cursive;
+            font-size: 32px;
+            opacity: 0;
+            transition: opacity 1s;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            z-index: 100;
+            pointer-events: none;
+        }
+        #wish-prompt.visible {
+            opacity: 1;
+        }
+
+        /* Timeline elements */
+        #timeline-date {
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #E0C097;
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 0 0 15px rgba(224, 192, 151, 0.5);
+            z-index: 100;
+        }
+        #timeline-date.visible {
+            opacity: 1;
+        }
+
+        #timeline-line {
+            position: fixed;
+            bottom: 130px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.5), rgba(255, 215, 0, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 99;
+        }
+        #timeline-line.visible {
+            opacity: 1;
+        }
     </style>
 
     <script src="firebase-config.js"></script>
@@ -292,9 +345,16 @@
 
         <div id="status-pill" class="status-pill">Tree Form</div>
 
+        <!-- Shooting star wish prompt -->
+        <div id="wish-prompt">✨ Make a wish! ✨</div>
+
         <!-- Gallery indicators -->
         <div id="gallery-hint">← Swipe to browse →</div>
         <div id="gallery-indicator"></div>
+
+        <!-- Timeline elements -->
+        <div id="timeline-date"></div>
+        <div id="timeline-line"></div>
 
         <!-- Hand position indicator -->
         <div id="hand-indicator"></div>
@@ -304,6 +364,7 @@
             <div class="control-item"><span class="icon" style="color:#B19CD9">○</span> <b>OPEN</b> &nbsp;Starfall</div>
             <div class="control-item"><span class="icon" style="color:#89CFF0">◎</span> <b>PINCH</b> &nbsp;View Memory</div>
             <div class="control-item"><span class="icon" style="color:#90EE90">✌</span> <b>TWO</b> &nbsp;Gallery</div>
+            <div class="control-item"><span class="icon" style="color:#FF6B6B">👆</span> <b>POINT</b> &nbsp;Timeline</div>
             
             <button class="btn-upload" onclick="document.getElementById('file-input').click()">Add Memory</button>
             <input type="file" id="file-input" multiple accept="image/*">
@@ -430,12 +491,13 @@
             baseRadius: 20      
         };
 
-        // === NEW: Added GALLERY state ===
+        // Added TIMELINE state
         const STATE = {
             TREE: 'TREE',
             SCATTER: 'GALAXY',
             ZOOM: 'MEMORY',
-            GALLERY: 'GALLERY'
+            GALLERY: 'GALLERY',
+            TIMELINE: 'TIMELINE'
         };
 
         let currentState = STATE.TREE;
@@ -445,10 +507,12 @@
         let globalPhotoCounter = 0;
         let focusedPhotoIndex = -1;
         
-        // Gallery state
-        let galleryScrollPosition = 0; // Current scroll position (0 to 1)
+        // Gallery/Timeline state
+        let galleryScrollPosition = 0;
         let galleryTargetScroll = 0;
         let galleryCenterIndex = 0;
+        let timelineScrollPosition = 0;
+        let timelineTargetScroll = 0;
 
         let scene, camera, renderer, composer, clock;
         let instancedMeshes = {}; 
@@ -460,6 +524,15 @@
         let dummy2 = new THREE.Object3D(); 
         let centerGlow, snowSystem;
         let photoGroup;
+        
+        // === NEW: Aurora/Northern Lights ===
+        let auroraMaterial, auroraMesh;
+        let auroraTime = 0;
+        
+        // === NEW: Shooting Stars ===
+        let shootingStars = [];
+        let lastShootingStarTime = 0;
+        const SHOOTING_STAR_INTERVAL = 8000;
 
         const AudioSys = {
             ctx: null,
@@ -656,6 +729,25 @@
                 gain.connect(this.masterGain);
                 osc.start(t);
                 osc.stop(t + 0.1);
+            },
+
+            playShootingStar: function() {
+                if(!this.ctx || this.isMuted) return;
+                const t = this.ctx.currentTime;
+                for (let i = 0; i < 5; i++) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200 + i * 200, t + i * 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(400, t + i * 0.1 + 0.5);
+                    gain.gain.setValueAtTime(0, t + i * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.03, t + i * 0.1 + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.5);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(t + i * 0.1);
+                    osc.stop(t + i * 0.1 + 0.6);
+                }
             }
         };
 
@@ -686,21 +778,49 @@
             return { x, y, z };
         }
 
-        // === NEW: Calculate gallery position (horizontal carousel) ===
         function calculateGalleryPosition(index, totalPhotos, scrollOffset) {
-            const spacing = 12; // More space between photos
+            const spacing = 12;
             const centerOffset = scrollOffset * (totalPhotos - 1) * spacing;
             const x = (index * spacing) - centerOffset;
             const y = 0;
-            
-            // Curve the gallery slightly - photos further from center go back
             const distFromCenter = Math.abs(x);
             const z = 38 - (distFromCenter * 0.08);
-            
-            // All photos bigger, center photo biggest
             const scale = Math.max(0.8, 2.2 - (distFromCenter * 0.03));
-            
             return { x, y, z, scale, distFromCenter };
+        }
+
+        // === NEW: Timeline position - curved path through time ===
+        function calculateTimelinePosition(index, totalPhotos, scrollOffset) {
+            const spacing = 15;
+            const centerOffset = scrollOffset * (totalPhotos - 1) * spacing;
+            const x = (index * spacing) - centerOffset;
+            const waveY = Math.sin(index * 0.5) * 3;
+            const y = waveY - 5;
+            const distFromCenter = Math.abs(x);
+            const z = 35 - (distFromCenter * 0.05);
+            const scale = Math.max(0.6, 1.8 - (distFromCenter * 0.025));
+            return { x, y, z, scale, distFromCenter };
+        }
+
+        // === NEW: Format date for timeline ===
+        function formatTimelineDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function updateTimelineDate() {
+            const dateEl = document.getElementById('timeline-date');
+            if (currentState === STATE.TIMELINE && photoParticles.length > 0) {
+                const centerIndex = Math.round(timelineScrollPosition * (photoParticles.length - 1));
+                const photoData = allPhotoData[centerIndex];
+                if (photoData && photoData.timestamp) {
+                    dateEl.textContent = formatTimelineDate(photoData.timestamp);
+                    dateEl.classList.add('visible');
+                }
+            } else {
+                dateEl.classList.remove('visible');
+            }
         }
 
         function rebuildPhotoPositions() {
@@ -715,7 +835,6 @@
             updateGalleryIndicator();
         }
 
-        // === NEW: Update gallery indicator dots ===
         function updateGalleryIndicator() {
             const container = document.getElementById('gallery-indicator');
             container.innerHTML = '';
@@ -728,6 +847,173 @@
                 dot.className = 'gallery-dot';
                 if (i === galleryCenterIndex) dot.classList.add('active');
                 container.appendChild(dot);
+            }
+        }
+
+        // === NEW: Create Aurora Borealis ===
+        function createAurora() {
+            const auroraVertexShader = `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+            
+            const auroraFragmentShader = `
+                uniform float time;
+                uniform float intensity;
+                varying vec2 vUv;
+                
+                vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+                
+                float snoise(vec2 v) {
+                    const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                    vec2 i = floor(v + dot(v, C.yy));
+                    vec2 x0 = v - i + dot(i, C.xx);
+                    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                    vec4 x12 = x0.xyxy + C.xxzz;
+                    x12.xy -= i1;
+                    i = mod289(i);
+                    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+                    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+                    m = m*m; m = m*m;
+                    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                    vec3 h = abs(x) - 0.5;
+                    vec3 ox = floor(x + 0.5);
+                    vec3 a0 = x - ox;
+                    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+                    vec3 g;
+                    g.x = a0.x * x0.x + h.x * x0.y;
+                    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                    return 130.0 * dot(m, g);
+                }
+                
+                void main() {
+                    vec2 uv = vUv;
+                    float n1 = snoise(vec2(uv.x * 2.0 + time * 0.1, uv.y * 0.5 + time * 0.05));
+                    float n2 = snoise(vec2(uv.x * 4.0 - time * 0.15, uv.y * 1.0 + time * 0.08));
+                    float n3 = snoise(vec2(uv.x * 1.0 + time * 0.05, uv.y * 2.0 - time * 0.03));
+                    
+                    float aurora = (n1 + n2 * 0.5 + n3 * 0.25) / 1.75;
+                    aurora = smoothstep(0.0, 0.8, aurora + 0.3);
+                    float verticalFade = pow(uv.y, 0.5);
+                    aurora *= verticalFade;
+                    
+                    float colorShift = time * 0.1;
+                    vec3 color1 = vec3(0.1, 0.8, 0.5);
+                    vec3 color2 = vec3(0.2, 0.4, 0.9);
+                    vec3 color3 = vec3(0.6, 0.2, 0.8);
+                    vec3 color4 = vec3(0.9, 0.3, 0.5);
+                    
+                    float t = sin(colorShift) * 0.5 + 0.5;
+                    float t2 = sin(colorShift + 1.5) * 0.5 + 0.5;
+                    vec3 auroraColor = mix(mix(color1, color2, t), mix(color3, color4, t2), sin(colorShift * 0.5) * 0.5 + 0.5);
+                    
+                    float shimmer = snoise(vec2(uv.x * 20.0 + time, uv.y * 10.0)) * 0.1;
+                    aurora += shimmer * verticalFade;
+                    
+                    gl_FragColor = vec4(auroraColor, aurora * intensity * 0.4);
+                }
+            `;
+            
+            auroraMaterial = new THREE.ShaderMaterial({
+                uniforms: { time: { value: 0 }, intensity: { value: 1.0 } },
+                vertexShader: auroraVertexShader,
+                fragmentShader: auroraFragmentShader,
+                transparent: true,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            
+            const auroraGeo = new THREE.PlaneGeometry(300, 150);
+            auroraMesh = new THREE.Mesh(auroraGeo, auroraMaterial);
+            auroraMesh.position.set(0, 60, -100);
+            auroraMesh.rotation.x = -0.2;
+            scene.add(auroraMesh);
+        }
+
+        // === NEW: Shooting Stars ===
+        function createShootingStar() {
+            const startX = (Math.random() - 0.5) * 150;
+            const startY = 50 + Math.random() * 30;
+            const startZ = -50 + Math.random() * 30;
+            
+            const angle = Math.PI * 0.7 + (Math.random() - 0.5) * 0.5;
+            const speed = 80 + Math.random() * 40;
+            
+            const velocity = new THREE.Vector3(
+                Math.cos(angle) * speed,
+                -Math.sin(angle) * speed * 0.7,
+                (Math.random() - 0.5) * 20
+            );
+            
+            const starGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.set(startX, startY, startZ);
+            
+            const trailPositions = [];
+            for (let i = 0; i < 30; i++) trailPositions.push(startX, startY, startZ);
+            
+            const trailGeo = new THREE.BufferGeometry();
+            trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(trailPositions, 3));
+            const trailMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            const trail = new THREE.Line(trailGeo, trailMat);
+            
+            scene.add(star);
+            scene.add(trail);
+            
+            shootingStars.push({ star, trail, trailGeo, velocity, life: 1, trailPositions: trailPositions.slice() });
+            
+            showWishPrompt();
+            AudioSys.playShootingStar();
+        }
+
+        function showWishPrompt() {
+            const prompt = document.getElementById('wish-prompt');
+            prompt.classList.add('visible');
+            setTimeout(() => prompt.classList.remove('visible'), 3000);
+        }
+
+        function updateShootingStars(delta) {
+            for (let i = shootingStars.length - 1; i >= 0; i--) {
+                const s = shootingStars[i];
+                s.star.position.add(s.velocity.clone().multiplyScalar(delta));
+                
+                const positions = s.trailGeo.attributes.position.array;
+                for (let j = positions.length - 3; j >= 3; j -= 3) {
+                    positions[j] = positions[j - 3];
+                    positions[j + 1] = positions[j - 2];
+                    positions[j + 2] = positions[j - 1];
+                }
+                positions[0] = s.star.position.x;
+                positions[1] = s.star.position.y;
+                positions[2] = s.star.position.z;
+                s.trailGeo.attributes.position.needsUpdate = true;
+                
+                s.life -= delta * 0.5;
+                s.star.material.opacity = s.life;
+                s.trail.material.opacity = s.life * 0.6;
+                
+                if (s.life <= 0 || s.star.position.y < -50) {
+                    scene.remove(s.star);
+                    scene.remove(s.trail);
+                    s.star.geometry.dispose();
+                    s.star.material.dispose();
+                    s.trail.geometry.dispose();
+                    s.trail.material.dispose();
+                    shootingStars.splice(i, 1);
+                }
+            }
+            
+            const now = Date.now();
+            if (now - lastShootingStarTime > SHOOTING_STAR_INTERVAL + Math.random() * 5000) {
+                createShootingStar();
+                lastShootingStarTime = now;
             }
         }
 
@@ -760,7 +1046,7 @@
             }
 
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x040206, 0.012);
+            scene.fog = new THREE.FogExp2(0x040206, 0.008); // Lighter fog to see aurora
 
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
             camera.position.set(0, 4, 60); 
@@ -786,6 +1072,7 @@
             createCenterPiece();
             initParticles();
             createSnow();
+            createAurora();
             
             photoGroup = new THREE.Group();
             photoGroup.renderOrder = 100;
@@ -799,6 +1086,7 @@
             document.getElementById('prev-btn').addEventListener('click', () => AudioSys.prevSong());
 
             clock = new THREE.Clock();
+            lastShootingStarTime = Date.now();
             initAI();
             animate();
         }
@@ -1063,30 +1351,30 @@
             const galleryHint = document.getElementById('gallery-hint');
             const galleryIndicator = document.getElementById('gallery-indicator');
             const handIndicator = document.getElementById('hand-indicator');
+            const timelineLine = document.getElementById('timeline-line');
+            const timelineDate = document.getElementById('timeline-date');
             
             let t = "", color = "#aaa", border = "rgba(255,255,255,0.1)";
             
+            // Hide all mode-specific UI first
+            galleryHint.classList.remove('visible');
+            galleryIndicator.classList.remove('visible');
+            handIndicator.classList.remove('visible');
+            timelineLine.classList.remove('visible');
+            timelineDate.classList.remove('visible');
+            
             if(state === STATE.TREE) { 
                 t = "Tree Form"; 
-                galleryHint.classList.remove('visible');
-                galleryIndicator.classList.remove('visible');
-                handIndicator.classList.remove('visible');
             }
             if(state === STATE.SCATTER) { 
                 t = "Galaxy Mode"; 
                 color = "#9370DB"; 
                 border = "rgba(147, 112, 219, 0.5)";
-                galleryHint.classList.remove('visible');
-                galleryIndicator.classList.remove('visible');
-                handIndicator.classList.remove('visible');
             }
             if(state === STATE.ZOOM) { 
                 t = "Viewing Memory"; 
                 color = "#FFF"; 
                 border = "#FFF";
-                galleryHint.classList.remove('visible');
-                galleryIndicator.classList.remove('visible');
-                handIndicator.classList.remove('visible');
             }
             if(state === STATE.GALLERY) { 
                 t = "Gallery Mode"; 
@@ -1096,6 +1384,15 @@
                 galleryIndicator.classList.add('visible');
                 handIndicator.classList.add('visible');
                 updateGalleryIndicator();
+            }
+            if(state === STATE.TIMELINE) { 
+                t = "Timeline"; 
+                color = "#FF6B6B"; 
+                border = "rgba(255, 107, 107, 0.5)";
+                timelineLine.classList.add('visible');
+                timelineDate.classList.add('visible');
+                handIndicator.classList.add('visible');
+                updateTimelineDate();
             }
             
             pill.innerText = t;
@@ -1110,10 +1407,21 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
             const time = clock.getElapsedTime();
 
+            // Update aurora
+            if (auroraMaterial) {
+                auroraTime += delta;
+                auroraMaterial.uniforms.time.value = auroraTime;
+                auroraMaterial.uniforms.intensity.value = 0.8 + Math.sin(auroraTime * 0.3) * 0.2;
+            }
+
+            // Update shooting stars
+            updateShootingStars(delta);
+
             // Update hand indicator position
-            if (currentState === STATE.GALLERY && isHandDetected) {
+            if ((currentState === STATE.GALLERY || currentState === STATE.TIMELINE) && isHandDetected) {
                 const handIndicator = document.getElementById('hand-indicator');
                 const screenX = (1 - handPosition.x * 0.5 - 0.5) * window.innerWidth;
                 const screenY = (handPosition.y * 0.5 + 0.5) * window.innerHeight;
@@ -1144,17 +1452,13 @@
                 scene.rotation.z *= 0.95;
                 particleTargetOpacity = 0.2;
                 
-                // Smooth hand tracking for gallery scroll - SLOWER
                 if (isHandDetected) {
-                    smoothHandX += (handPosition.x - smoothHandX) * 0.03; // Much slower tracking
-                    // Map hand position (-1 to 1) to scroll position (0 to 1)
+                    smoothHandX += (handPosition.x - smoothHandX) * 0.03;
                     galleryTargetScroll = Math.max(0, Math.min(1, (smoothHandX + 1) / 2));
                 }
                 
-                // Smooth scroll - SLOWER
                 galleryScrollPosition += (galleryTargetScroll - galleryScrollPosition) * 0.04;
                 
-                // Calculate center photo index
                 if (photoParticles.length > 0) {
                     const newCenterIndex = Math.round(galleryScrollPosition * (photoParticles.length - 1));
                     if (newCenterIndex !== lastGalleryCenterIndex) {
@@ -1164,6 +1468,19 @@
                         AudioSys.playTick();
                     }
                 }
+            } else if (currentState === STATE.TIMELINE) {
+                scene.rotation.y += (0 - scene.rotation.y) * 0.05; 
+                scene.rotation.x *= 0.95;
+                scene.rotation.z *= 0.95;
+                particleTargetOpacity = 0.15;
+                
+                if (isHandDetected) {
+                    smoothHandX += (handPosition.x - smoothHandX) * 0.025;
+                    timelineTargetScroll = Math.max(0, Math.min(1, (smoothHandX + 1) / 2));
+                }
+                
+                timelineScrollPosition += (timelineTargetScroll - timelineScrollPosition) * 0.03;
+                updateTimelineDate();
             }
 
             // Smoothly fade particles
@@ -1185,8 +1502,7 @@
                 let target;
                 if (currentState === STATE.TREE) {
                     target = p.treePos;
-                } else if (currentState === STATE.GALLERY) {
-                    // Push particles to the sides during gallery
+                } else if (currentState === STATE.GALLERY || currentState === STATE.TIMELINE) {
                     target = p.scatterPos.clone();
                     target.x *= 1.5;
                     target.z -= 20;
@@ -1209,7 +1525,7 @@
                     if (blink > 0.5) p.mesh.setColorAt(p.index, tempCol.copy(p.baseColor).multiplyScalar(1.5));
                     else p.mesh.setColorAt(p.index, p.baseColor);
                 }
-                if (currentState === STATE.ZOOM || currentState === STATE.GALLERY) scale *= 0.3; 
+                if (currentState === STATE.ZOOM || currentState === STATE.GALLERY || currentState === STATE.TIMELINE) scale *= 0.3; 
                 dummy.scale.setScalar(scale);
                 dummy.updateMatrix();
                 p.mesh.setMatrixAt(p.index, dummy.matrix);
@@ -1260,21 +1576,30 @@
                     const galPos = calculateGalleryPosition(idx, photoParticles.length, galleryScrollPosition);
                     const tPos = new THREE.Vector3(galPos.x, galPos.y, galPos.z);
                     
-                    p.mesh.position.lerp(tPos, 0.06); // Slower movement
-                    
-                    // Face camera
+                    p.mesh.position.lerp(tPos, 0.06);
                     p.mesh.lookAt(camera.position);
-                    
-                    // Scale based on distance from center - slower scaling
                     const targetScale = galPos.scale;
                     p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
-                    
-                    // Slight tilt for 3D effect
                     p.mesh.rotation.y = galPos.x * 0.015;
                     p.mesh.rotation.z = 0;
-                    
-                    // Fade photos at edges - center is fully visible
                     const opacity = Math.max(0.3, 1 - galPos.distFromCenter * 0.02);
+                    p.mesh.material.opacity = opacity;
+                    p.mesh.material.transparent = true;
+                    
+                } else if (currentState === STATE.TIMELINE) {
+                    // === TIMELINE MODE: Chronological path ===
+                    p.mesh.visible = true;
+                    
+                    const tlPos = calculateTimelinePosition(idx, photoParticles.length, timelineScrollPosition);
+                    const tPos = new THREE.Vector3(tlPos.x, tlPos.y, tlPos.z);
+                    
+                    p.mesh.position.lerp(tPos, 0.05);
+                    p.mesh.lookAt(camera.position);
+                    const targetScale = tlPos.scale;
+                    p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
+                    p.mesh.rotation.y = tlPos.x * 0.01;
+                    p.mesh.rotation.z = 0;
+                    const opacity = Math.max(0.3, 1 - tlPos.distFromCenter * 0.015);
                     p.mesh.material.opacity = opacity;
                     p.mesh.material.transparent = true;
                     
@@ -1345,32 +1670,37 @@
                     const isPinching = pinchDist < 0.06;
                     
                     // Count open fingers
-                    let openCount = 0;
-                    if(h[8].y < h[6].y) openCount++;  // Index
-                    if(h[12].y < h[10].y) openCount++; // Middle
-                    if(h[16].y < h[14].y) openCount++; // Ring
-                    if(h[20].y < h[18].y) openCount++; // Pinky
-                    
-                    // Check for peace sign (index + middle open, others closed)
                     const isIndexOpen = h[8].y < h[6].y;
                     const isMiddleOpen = h[12].y < h[10].y;
-                    const isRingClosed = h[16].y >= h[14].y;
-                    const isPinkyClosed = h[20].y >= h[18].y;
-                    const isPeaceSign = isIndexOpen && isMiddleOpen && isRingClosed && isPinkyClosed && !isPinching;
+                    const isRingOpen = h[16].y < h[14].y;
+                    const isPinkyOpen = h[20].y < h[18].y;
+                    
+                    let openCount = 0;
+                    if(isIndexOpen) openCount++;
+                    if(isMiddleOpen) openCount++;
+                    if(isRingOpen) openCount++;
+                    if(isPinkyOpen) openCount++;
+                    
+                    // Gesture detection
+                    const isPeaceSign = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen && !isPinching;
+                    const isPointing = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && !isPinching;
                     
                     let nextState = currentState;
                     
                     // === GESTURE RECOGNITION ===
-                    if (isPeaceSign) {
+                    if (isPointing) {
+                        // 👆 Point = Timeline mode
+                        nextState = STATE.TIMELINE;
+                    } else if (isPeaceSign) {
                         // ✌️ Two fingers = Gallery mode
                         nextState = STATE.GALLERY;
-                    } else if (isPinching && (currentState === STATE.SCATTER || currentState === STATE.GALLERY)) {
+                    } else if (isPinching && (currentState === STATE.SCATTER || currentState === STATE.GALLERY || currentState === STATE.TIMELINE)) {
                         // 🤏 Pinch = View single memory
                         nextState = STATE.ZOOM;
                     } else if (openCount >= 4) {
                         // 🖐️ Open hand = Galaxy scatter
                         nextState = STATE.SCATTER;
-                    } else if (openCount <= 1 && !isPinching && !isPeaceSign) {
+                    } else if (openCount <= 1 && !isPinching && !isPeaceSign && !isPointing) {
                         // ✊ Fist = Tree form
                         nextState = STATE.TREE; 
                     }
@@ -1381,21 +1711,21 @@
                         AudioSys.playWhoosh(); 
                         
                         if (currentState === STATE.ZOOM && photoParticles.length > 0) {
-                            // When entering zoom from gallery, use gallery center
-                            if (galleryCenterIndex >= 0) {
-                                focusedPhotoIndex = galleryCenterIndex;
-                            } else {
-                                focusedPhotoIndex = globalPhotoCounter % photoParticles.length;
-                                globalPhotoCounter++;
-                            }
+                            // Cycle to next photo each time we enter zoom
+                            focusedPhotoIndex = globalPhotoCounter % photoParticles.length;
+                            globalPhotoCounter++;
                             AudioSys.playChime(); 
                         } else if (currentState === STATE.GALLERY) {
-                            // Initialize gallery scroll to show first photo
                             if (photoParticles.length > 0) {
                                 galleryScrollPosition = focusedPhotoIndex >= 0 
                                     ? focusedPhotoIndex / (photoParticles.length - 1) 
                                     : 0;
                                 galleryTargetScroll = galleryScrollPosition;
+                            }
+                        } else if (currentState === STATE.TIMELINE) {
+                            if (photoParticles.length > 0) {
+                                timelineScrollPosition = 0;
+                                timelineTargetScroll = 0;
                             }
                         } else {
                             focusedPhotoIndex = -1;
@@ -1415,7 +1745,7 @@
                 if(e.key === '3') {
                     currentState = STATE.ZOOM;
                     if (photoParticles.length > 0) {
-                        focusedPhotoIndex = galleryCenterIndex >= 0 ? galleryCenterIndex : (globalPhotoCounter % photoParticles.length);
+                        focusedPhotoIndex = globalPhotoCounter % photoParticles.length;
                         globalPhotoCounter++;
                     }
                 }
@@ -1426,34 +1756,45 @@
                         galleryTargetScroll = 0;
                     }
                 }
-                // Arrow keys for gallery navigation
+                if(e.key === '5') {
+                    currentState = STATE.TIMELINE;
+                    if (photoParticles.length > 0) {
+                        timelineScrollPosition = 0;
+                        timelineTargetScroll = 0;
+                    }
+                }
+                // Arrow keys for gallery/timeline navigation
                 if (currentState === STATE.GALLERY) {
-                    if (e.key === 'ArrowLeft') {
-                        galleryTargetScroll = Math.max(0, galleryTargetScroll - 0.1);
-                    }
-                    if (e.key === 'ArrowRight') {
-                        galleryTargetScroll = Math.min(1, galleryTargetScroll + 0.1);
-                    }
+                    if (e.key === 'ArrowLeft') galleryTargetScroll = Math.max(0, galleryTargetScroll - 0.1);
+                    if (e.key === 'ArrowRight') galleryTargetScroll = Math.min(1, galleryTargetScroll + 0.1);
+                }
+                if (currentState === STATE.TIMELINE) {
+                    if (e.key === 'ArrowLeft') timelineTargetScroll = Math.max(0, timelineTargetScroll - 0.1);
+                    if (e.key === 'ArrowRight') timelineTargetScroll = Math.min(1, timelineTargetScroll + 0.1);
                 }
                 updateUI(currentState);
                 AudioSys.playWhoosh();
             });
             
-            // Mouse drag for gallery
+            // Mouse drag for gallery/timeline
             let isDragging = false;
             let lastMouseX = 0;
             
             document.addEventListener('mousedown', (e) => {
-                if (currentState === STATE.GALLERY) {
+                if (currentState === STATE.GALLERY || currentState === STATE.TIMELINE) {
                     isDragging = true;
                     lastMouseX = e.clientX;
                 }
             });
             
             document.addEventListener('mousemove', (e) => {
-                if (isDragging && currentState === STATE.GALLERY) {
+                if (isDragging) {
                     const delta = (e.clientX - lastMouseX) / window.innerWidth;
-                    galleryTargetScroll = Math.max(0, Math.min(1, galleryTargetScroll - delta));
+                    if (currentState === STATE.GALLERY) {
+                        galleryTargetScroll = Math.max(0, Math.min(1, galleryTargetScroll - delta));
+                    } else if (currentState === STATE.TIMELINE) {
+                        timelineTargetScroll = Math.max(0, Math.min(1, timelineTargetScroll - delta));
+                    }
                     lastMouseX = e.clientX;
                 }
             });
